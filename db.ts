@@ -1,6 +1,10 @@
 import postgres from "https://deno.land/x/postgresjs@v3.2.4/mod.js";
 import { z } from "https://deno.land/x/zod@v3.17.3/mod.ts";
 
+const numeric = z.string()
+  .transform((val) => parseInt(val, 10))
+  .refine((val) => !Number.isNaN(val));
+
 const messageSchema = z.object({
   id: z.number().int(),
   timestamp: z.date(),
@@ -53,9 +57,7 @@ export async function clearMessages(
 }
 
 const numMessagesSchema = z.object({
-  num_messages: z.string()
-    .transform((val) => parseInt(val, 10))
-    .refine((val) => !Number.isNaN(val)),
+  num_messages: numeric,
 });
 
 // Delete the messages in a particular channel, or all messages if the channel is null
@@ -64,4 +66,20 @@ export async function countMessages(channel: string | null): Promise<number> {
   const [numMessages] = await sql
     `SELECT count(*) AS num_messages FROM message ${query}`;
   return numMessagesSchema.parse(numMessages).num_messages;
+}
+
+const summarizeMessagesSchema = z.array(z.object({
+  channel: z.string(),
+  num_messages: numeric,
+}));
+
+// Count the number of messages in each channel
+export async function summarizeMessages(): Promise<Map<string, number>> {
+  const totals = await sql
+    `SELECT channel, COUNT(*) as num_messages FROM message GROUP BY channel;`;
+  return new Map(
+    summarizeMessagesSchema.parse(totals).map((
+      { channel, num_messages },
+    ) => [channel, num_messages]),
+  );
 }
