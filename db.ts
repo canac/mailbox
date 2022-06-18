@@ -42,3 +42,12 @@ export async function loadMessages(channel: string | null): Promise<Message[]> {
   return messages.map((message) => messageSchema.parse(message));
 }
 
+// Delete the messages in a particular channel, or all messages if the channel is null
+// Return the deleted messages
+export async function clearMessages(
+  channel: string | null,
+): Promise<Message[]> {
+  const query = channel === null ? sql`` : sql`WHERE channel = ${channel}`;
+  const messages = await sql`DELETE FROM message ${query} RETURNING *`;
+  return messages.map((message) => messageSchema.parse(message));
+}
