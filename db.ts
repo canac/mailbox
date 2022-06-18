@@ -51,3 +51,17 @@ export async function clearMessages(
   const messages = await sql`DELETE FROM message ${query} RETURNING *`;
   return messages.map((message) => messageSchema.parse(message));
 }
+
+const numMessagesSchema = z.object({
+  num_messages: z.string()
+    .transform((val) => parseInt(val, 10))
+    .refine((val) => !Number.isNaN(val)),
+});
+
+// Delete the messages in a particular channel, or all messages if the channel is null
+export async function countMessages(channel: string | null): Promise<number> {
+  const query = channel === null ? sql`` : sql`WHERE channel = ${channel}`;
+  const [numMessages] = await sql
+    `SELECT count(*) AS num_messages FROM message ${query}`;
+  return numMessagesSchema.parse(numMessages).num_messages;
+}
