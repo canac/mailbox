@@ -32,6 +32,11 @@ export async function setup() {
   );`;
 }
 
+// Disconnect from the database
+export async function disconnect() {
+  await sql.end();
+}
+
 // Add a new message to a particular channel, returning the new message
 export async function addMessage(
   channel: string,

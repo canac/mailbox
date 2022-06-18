@@ -3,6 +3,7 @@ import {
   addMessage,
   clearMessages,
   countMessages,
+  disconnect,
   loadMessages,
   Message,
   setup,
@@ -22,17 +23,20 @@ const program = new Denomander({
 program.command("add [channel] [message]", "Add a message to a channel")
   .action(async (args: { channel: string; message: string }) => {
     console.log(formatMessage(await addMessage(args.channel, args.message)));
+    await disconnect();
   });
 
 program.command("clear [channel?]", "Clear the messages")
   .action(async (args: { channel: string | undefined }) => {
     const messages = await clearMessages(args.channel ?? null);
     console.log(messages.map((message) => formatMessage(message)).join("\n"));
+    await disconnect();
   });
 
 program.command("count [channel?]", "Count the messages")
   .action(async (args: { channel: string | undefined }) => {
     console.log(await countMessages(args.channel ?? null));
+    await disconnect();
   });
 
 program.command("summary", "Summarize the messages")
@@ -43,12 +47,14 @@ program.command("summary", "Summarize the messages")
         `[${channel}]: ${count}`
       ).join("\n"),
     );
+    await disconnect();
   });
 
 program.command("view [channel?]", "View the messages")
   .action(async (args: { channel: string | undefined }) => {
     const messages = (await loadMessages(args.channel ?? null));
     console.log(messages.map((message) => formatMessage(message)).join("\n"));
+    await disconnect();
   });
 
 await setup();
