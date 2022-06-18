@@ -1,0 +1,6 @@
+{
+  "tasks": {
+    "run": "deno run --allow-env --allow-net --unstable cli.ts",
+    "run-watch": "deno run --allow-env --allow-net --unstable --watch cli.ts"
+  }
+}
