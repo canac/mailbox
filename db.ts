@@ -17,6 +17,9 @@ export type Message = z.infer<typeof messageSchema>;
 const sql = postgres({
   user: "postgres",
   db: "mailbox",
+
+  // Ignore notice messages
+  onnotice: () => {},
 });
 
 // Setup the database tables
