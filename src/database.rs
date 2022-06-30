@@ -110,13 +110,14 @@ impl Database {
             .build(SqliteQueryBuilder);
 
         let mut statement = self.connection.prepare(sql.as_str())?;
-        let messages = statement
+        let mut messages = statement
             .query_map(
                 RusqliteValues::from(values).as_params().as_slice(),
                 Message::from_row,
             )?
             .collect::<Result<Vec<Message>, _>>()
             .context("Error reading messages")?;
+        messages.sort_by_key(|message| message.timestamp);
         Ok(messages)
     }
 
@@ -136,13 +137,14 @@ impl Database {
             .build(SqliteQueryBuilder);
 
         let mut statement = self.connection.prepare(sql.as_str())?;
-        let messages = statement
+        let mut messages = statement
             .query_map(
                 RusqliteValues::from(values).as_params().as_slice(),
                 Message::from_row,
             )?
             .collect::<Result<Vec<Message>, _>>()
             .context("Error clearing messages")?;
+        messages.sort_by_key(|message| message.timestamp);
         Ok(messages)
     }
 
