@@ -49,7 +49,13 @@ fn main() -> Result<()> {
             println!("{count}");
         }
         Cli::Summarize => {
-            for (mailbox, MailboxSummary { count, unread }) in db.summarize_messages()? {
+            let summaries = db.summarize_messages()?;
+            for MailboxSummary {
+                mailbox,
+                count,
+                unread,
+            } in summaries
+            {
                 println!("{mailbox}: {unread}/{count} unread");
             }
         }

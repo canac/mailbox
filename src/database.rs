@@ -3,7 +3,6 @@ use crate::models::{Message, MessageIden};
 use anyhow::{Context, Result};
 use rusqlite::Connection;
 use sea_query::{Alias, ColumnDef, Expr, Func, Order, Query, SqliteQueryBuilder, Table, Value};
-use std::collections::HashMap;
 
 sea_query::sea_query_driver_rusqlite!();
 
@@ -12,6 +11,7 @@ pub struct Database {
 }
 
 pub struct MailboxSummary {
+    pub mailbox: String,
     pub count: i64,
     pub unread: i64,
 }
@@ -173,7 +173,7 @@ impl Database {
     }
 
     // Count the number of messages in each mailbox
-    pub fn summarize_messages(&mut self) -> Result<HashMap<String, MailboxSummary>> {
+    pub fn summarize_messages(&mut self) -> Result<Vec<MailboxSummary>> {
         let (sql, values) = Query::select()
             .from(MessageIden::Table)
             .column(MessageIden::Mailbox)
@@ -183,20 +183,20 @@ impl Database {
                 Alias::new("unread"),
             )
             .group_by_col(MessageIden::Mailbox)
+            .order_by_expr(Expr::cust("count"), Order::Desc)
+            .order_by(MessageIden::Mailbox, Order::Asc)
             .build(SqliteQueryBuilder);
 
         let mut statement = self.connection.prepare(sql.as_str())?;
         let summaries = statement
             .query_map(RusqliteValues::from(values).as_params().as_slice(), |row| {
-                Ok((
-                    row.get(0)?,
-                    MailboxSummary {
-                        count: row.get(1)?,
-                        unread: row.get(2)?,
-                    },
-                ))
+                Ok(MailboxSummary {
+                    mailbox: row.get(0)?,
+                    count: row.get(1)?,
+                    unread: row.get(2)?,
+                })
             })?
-            .collect::<Result<HashMap<String, MailboxSummary>, _>>()
+            .collect::<Result<Vec<MailboxSummary>, _>>()
             .context("Error summarizing messages")?;
         Ok(summaries)
     }
