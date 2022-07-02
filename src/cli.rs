@@ -1,4 +1,13 @@
-use clap::Parser;
+use clap::{ArgEnum, Parser};
+
+#[derive(ArgEnum, Clone)]
+pub enum MessageState {
+    Unread,
+    Read,
+    Archived,
+    Unarchived,
+    All,
+}
 
 #[derive(Parser)]
 #[clap(
@@ -17,40 +26,34 @@ pub enum Cli {
         content: String,
     },
 
-    /// Clear messages from one or all mailboxes
-    Clear {
-        /// Mailbox name, all mailboxes if absent
+    /// View messages
+    View {
+        /// Only view messages in a particular mailbox
         mailbox: Option<String>,
 
-        /// Only clear read messages
-        #[clap(short = 'r', long)]
-        read: bool,
+        /// Only view messages in a particular state
+        #[clap(arg_enum, short = 's', long, default_value = "unread")]
+        state: MessageState,
     },
 
-    /// Count messages in one or all mailboxes
-    Count {
-        /// Mailbox name, all mailboxes if absent
+    /// Mark unread messages as read
+    Read {
+        /// Only read messages in a particular mailbox
         mailbox: Option<String>,
+    },
 
-        /// Only count unread messages
-        #[clap(short = 'u', long)]
-        unread: bool,
+    /// Archive all read and unread messages
+    Archive {
+        /// Only archive messages in a particular mailbox
+        mailbox: Option<String>,
+    },
+
+    /// Permanently clear archived messages
+    Clear {
+        /// Only clear archived messages in a particular mailbox
+        mailbox: Option<String>,
     },
 
     /// Summarize all mailboxes
     Summarize,
-
-    /// View messages in one or all mailboxes
-    View {
-        /// Mailbox name, all mailboxes if absent
-        mailbox: Option<String>,
-
-        /// Only view unread messages
-        #[clap(short = 'u', long)]
-        unread: bool,
-
-        /// Mark viewed messages as read
-        #[clap(short = 'r', long, requires = "unread")]
-        mark_read: bool,
-    },
 }
