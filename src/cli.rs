@@ -1,8 +1,14 @@
-use crate::models;
 use clap::{Parser, ValueEnum};
 
 #[derive(ValueEnum, Clone)]
-pub enum MessageState {
+pub enum AddMessageState {
+    Unread,
+    Read,
+    Archived,
+}
+
+#[derive(ValueEnum, Clone)]
+pub enum ViewMessageState {
     Unread,
     Read,
     Archived,
@@ -28,7 +34,7 @@ pub enum Cli {
 
         /// Mailbox state
         #[clap(value_enum, short = 's', long, default_value = "unread")]
-        state: models::MessageState,
+        state: AddMessageState,
     },
 
     /// View messages
@@ -39,7 +45,7 @@ pub enum Cli {
 
         /// Only view messages in a particular state
         #[clap(value_enum, short = 's', long, default_value = "unread")]
-        state: MessageState,
+        state: ViewMessageState,
     },
 
     /// Mark unread messages as read

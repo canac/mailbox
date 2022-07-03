@@ -44,6 +44,11 @@ fn main() -> Result<()> {
             content,
             state,
         } => {
+            let state = match state {
+                cli::AddMessageState::Unread => MessageState::Unread,
+                cli::AddMessageState::Read => MessageState::Read,
+                cli::AddMessageState::Archived => MessageState::Archived,
+            };
             println!(
                 "{}",
                 db.add_message(mailbox.as_str(), content.as_str(), Some(state))?
@@ -52,13 +57,13 @@ fn main() -> Result<()> {
         }
         Cli::View { mailbox, state } => {
             let states = match state {
-                cli::MessageState::Unread => vec![MessageState::Unread],
-                cli::MessageState::Read => vec![MessageState::Read],
-                cli::MessageState::Archived => vec![MessageState::Archived],
-                cli::MessageState::Unarchived => {
+                cli::ViewMessageState::Unread => vec![MessageState::Unread],
+                cli::ViewMessageState::Read => vec![MessageState::Read],
+                cli::ViewMessageState::Archived => vec![MessageState::Archived],
+                cli::ViewMessageState::Unarchived => {
                     vec![MessageState::Unread, MessageState::Read]
                 }
-                cli::MessageState::All => vec![
+                cli::ViewMessageState::All => vec![
                     MessageState::Unread,
                     MessageState::Read,
                     MessageState::Archived,
