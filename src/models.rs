@@ -2,6 +2,7 @@ use anyhow::anyhow;
 use rusqlite::{Result, Row};
 use sea_query::{enum_def, Value};
 
+#[derive(Clone, Copy)]
 pub enum MessageState {
     Unread,
     Read,

@@ -1,4 +1,5 @@
 use self::sea_query_driver_rusqlite::RusqliteValues;
+use crate::message_filter::MessageFilter;
 use crate::models::{Message, MessageIden, MessageState};
 use anyhow::{Context, Result};
 use rusqlite::Connection;
@@ -109,28 +110,12 @@ impl Database {
         Ok(message)
     }
 
-    // Load messages
-    // Only load messages in the specified mailbox if mailbox_filter is provided
-    // Only load messages in one of the specified states if states_filter is provided
-    pub fn load_messages(
-        &mut self,
-        mailbox_filter: Option<&str>,
-        states_filter: Option<Vec<MessageState>>,
-    ) -> Result<Vec<Message>> {
+    // Load messages, applying the provided filters
+    pub fn load_messages(&mut self, filter: &MessageFilter) -> Result<Vec<Message>> {
         let (sql, values) = Query::select()
             .expr(Expr::asterisk())
             .from(MessageIden::Table)
-            .and_where_option(
-                mailbox_filter.map(|mailbox| Expr::col(MessageIden::Mailbox).eq(mailbox)),
-            )
-            .and_where_option(states_filter.map(|states| {
-                Expr::col(MessageIden::State).is_in(
-                    states
-                        .into_iter()
-                        .map(|state| state.into())
-                        .collect::<Vec<i64>>(),
-                )
-            }))
+            .cond_where(filter.get_where())
             .order_by(MessageIden::Timestamp, Order::Asc)
             .build(SqliteQueryBuilder);
 
@@ -150,23 +135,12 @@ impl Database {
     // Only load messages in one of the specified states if states_filter is provided
     pub fn change_state(
         &mut self,
-        mailbox_filter: Option<&str>,
-        states_filter: Option<Vec<MessageState>>,
+        filter: &MessageFilter,
         new_state: MessageState,
     ) -> Result<Vec<Message>> {
         let (sql, values) = Query::update()
             .table(MessageIden::Table)
-            .and_where_option(
-                mailbox_filter.map(|mailbox| Expr::col(MessageIden::Mailbox).eq(mailbox)),
-            )
-            .and_where_option(states_filter.map(|states| {
-                Expr::col(MessageIden::State).is_in(
-                    states
-                        .into_iter()
-                        .map(|state| state.into())
-                        .collect::<Vec<i64>>(),
-                )
-            }))
+            .cond_where(filter.get_where())
             .value(MessageIden::State, new_state.into())
             .returning_all()
             .build(SqliteQueryBuilder);
@@ -183,28 +157,12 @@ impl Database {
         Ok(messages)
     }
 
-    // Delete messages
-    // Only delete messages in the specified mailbox if mailbox_filter is provided
-    // Only delete messages in one of the specified states if states_filter is provided
-    pub fn delete_messages(
-        &mut self,
-        mailbox_filter: Option<&str>,
-        states_filter: Option<Vec<MessageState>>,
-    ) -> Result<Vec<Message>> {
+    // Delete messages, applying the provided filters
+    pub fn delete_messages(&mut self, filter: &MessageFilter) -> Result<Vec<Message>> {
         let (sql, values) = Query::delete()
             .from_table(MessageIden::Table)
             .returning_all()
-            .and_where_option(
-                mailbox_filter.map(|mailbox| Expr::col(MessageIden::Mailbox).eq(mailbox)),
-            )
-            .and_where_option(states_filter.map(|states| {
-                Expr::col(MessageIden::State).is_in(
-                    states
-                        .into_iter()
-                        .map(|state| state.into())
-                        .collect::<Vec<i64>>(),
-                )
-            }))
+            .cond_where(filter.get_where())
             .build(SqliteQueryBuilder);
 
         let mut statement = self.connection.prepare(sql.as_str())?;
@@ -288,16 +246,16 @@ mod tests {
         db.add_message("mailbox1", "message1", None)?;
         db.add_message("mailbox2", "message2", None)?;
         db.add_message("mailbox1", "message3", None)?;
-        assert_eq!(db.load_messages(None, None)?.len(), 3);
+        assert_eq!(db.load_messages(&MessageFilter::new())?.len(), 3);
 
-        let messages = db.load_messages(Some("mailbox1"), None)?;
+        let messages = db.load_messages(&MessageFilter::new().with_mailbox("mailbox1"))?;
         assert_eq!(messages[0].mailbox, "mailbox1");
         assert_eq!(messages[0].content, "message1");
         assert_eq!(messages[1].mailbox, "mailbox1");
         assert_eq!(messages[1].content, "message3");
         assert_eq!(messages.len(), 2);
 
-        let messages = db.load_messages(Some("mailbox2"), None)?;
+        let messages = db.load_messages(&MessageFilter::new().with_mailbox("mailbox2"))?;
         assert_eq!(messages[0].mailbox, "mailbox2");
         assert_eq!(messages[0].content, "message2");
         assert_eq!(messages.len(), 1);
@@ -308,23 +266,30 @@ mod tests {
     #[test]
     fn test_load() -> Result<()> {
         let mut db = get_populated_db()?;
-        assert_eq!(db.load_messages(None, None)?.len(), 6);
+        assert_eq!(db.load_messages(&MessageFilter::new())?.len(), 6);
         Ok(())
     }
 
     #[test]
     fn test_load_with_filters() -> Result<()> {
         let mut db = get_populated_db()?;
-        assert_eq!(db.load_messages(Some("unread"), None)?.len(), 2);
+        assert_eq!(
+            db.load_messages(&MessageFilter::new().with_mailbox("unread"))?
+                .len(),
+            2
+        );
         Ok(())
     }
 
     #[test]
     fn test_read() -> Result<()> {
         let mut db = get_populated_db()?;
-        db.change_state(None, Some(vec![MessageState::Unread]), MessageState::Read)?;
+        db.change_state(
+            &MessageFilter::new().with_states(vec![MessageState::Unread]),
+            MessageState::Read,
+        )?;
         assert_eq!(
-            db.load_messages(None, Some(vec![MessageState::Read]))?
+            db.load_messages(&MessageFilter::new().with_states(vec![MessageState::Read]))?
                 .len(),
             5
         );
@@ -335,12 +300,11 @@ mod tests {
     fn test_archive() -> Result<()> {
         let mut db = get_populated_db()?;
         db.change_state(
-            None,
-            Some(vec![MessageState::Unread, MessageState::Read]),
+            &MessageFilter::new().with_states(vec![MessageState::Unread, MessageState::Read]),
             MessageState::Archived,
         )?;
         assert_eq!(
-            db.load_messages(None, Some(vec![MessageState::Archived]))?
+            db.load_messages(&MessageFilter::new().with_states(vec![MessageState::Archived]))?
                 .len(),
             6
         );
@@ -350,8 +314,10 @@ mod tests {
     #[test]
     fn test_delete() -> Result<()> {
         let mut db = get_populated_db()?;
-        db.delete_messages(None, Some(vec![MessageState::Unread, MessageState::Read]))?;
-        assert_eq!(db.load_messages(None, None)?.len(), 1);
+        db.delete_messages(
+            &MessageFilter::new().with_states(vec![MessageState::Unread, MessageState::Read]),
+        )?;
+        assert_eq!(db.load_messages(&MessageFilter::new())?.len(), 1);
         Ok(())
     }
 

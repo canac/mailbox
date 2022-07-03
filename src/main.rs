@@ -1,5 +1,6 @@
 mod cli;
 mod database;
+mod message_filter;
 mod models;
 
 use crate::cli::Cli;
@@ -8,6 +9,7 @@ use crate::models::MessageState;
 use anyhow::{Context, Result};
 use clap::Parser;
 use database::MailboxSummary;
+use message_filter::MessageFilter;
 use std::{fs::create_dir_all, process::Command, vec};
 
 // Execute MAILBOX_POST_WRITE_CMD
@@ -58,15 +60,20 @@ fn main() -> Result<()> {
                     MessageState::Archived,
                 ],
             };
-            let messages = db.load_messages(mailbox.as_deref(), Some(states))?;
+            let messages = db.load_messages(
+                &MessageFilter::new()
+                    .with_mailbox_option(mailbox)
+                    .with_states(states),
+            )?;
             for message in messages {
                 println!("{}", message);
             }
         }
         Cli::Read { mailbox } => {
             let messages = db.change_state(
-                mailbox.as_deref(),
-                Some(vec![MessageState::Unread]),
+                &MessageFilter::new()
+                    .with_mailbox_option(mailbox)
+                    .with_states(vec![MessageState::Unread]),
                 MessageState::Read,
             )?;
             for message in messages {
@@ -76,8 +83,9 @@ fn main() -> Result<()> {
         }
         Cli::Archive { mailbox } => {
             let messages = db.change_state(
-                mailbox.as_deref(),
-                Some(vec![MessageState::Unread, MessageState::Read]),
+                &MessageFilter::new()
+                    .with_mailbox_option(mailbox)
+                    .with_states(vec![MessageState::Unread, MessageState::Read]),
                 MessageState::Archived,
             )?;
             for message in messages {
@@ -86,8 +94,11 @@ fn main() -> Result<()> {
             post_write()?;
         }
         Cli::Clear { mailbox } => {
-            let messages =
-                db.delete_messages(mailbox.as_deref(), Some(vec![MessageState::Archived]))?;
+            let messages = db.delete_messages(
+                &MessageFilter::new()
+                    .with_mailbox_option(mailbox)
+                    .with_states(vec![MessageState::Archived]),
+            )?;
             for message in messages {
                 println!("{}", message);
             }
