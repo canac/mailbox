@@ -21,15 +21,14 @@ pub struct Database {
 
 impl Database {
     // Create a new Database instance
-    pub fn new() -> Result<Self> {
-        #[cfg(test)]
-        let result = Connection::open_in_memory();
-        #[cfg(not(test))]
-        let result = Connection::open("mailbox.db");
-
-        let mut db = Database {
-            connection: result.context("Error opening database")?,
-        };
+    // An in-memory database is used if a database path isn't provided
+    pub fn new(db_path: Option<std::path::PathBuf>) -> Result<Self> {
+        let connection = match db_path {
+            Some(path) => Connection::open(path),
+            None => Connection::open_in_memory(),
+        }
+        .context("Error opening database")?;
+        let mut db = Database { connection };
         db.init()?;
         Ok(db)
     }
@@ -267,7 +266,7 @@ mod tests {
     use super::*;
 
     fn get_populated_db() -> Result<Database> {
-        let mut db = Database::new()?;
+        let mut db = Database::new(None)?;
         db.add_message("unread", "unread1", Some(MessageState::Unread))?;
         db.add_message("unread", "unread2", Some(MessageState::Unread))?;
         db.add_message("read", "read1", Some(MessageState::Read))?;
@@ -279,13 +278,13 @@ mod tests {
 
     #[test]
     fn test_create() -> Result<()> {
-        Database::new()?;
+        Database::new(None)?;
         Ok(())
     }
 
     #[test]
     fn test_add() -> Result<()> {
-        let mut db = Database::new()?;
+        let mut db = Database::new(None)?;
         db.add_message("mailbox1", "message1", None)?;
         db.add_message("mailbox2", "message2", None)?;
         db.add_message("mailbox1", "message3", None)?;

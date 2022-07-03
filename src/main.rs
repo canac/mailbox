@@ -8,7 +8,7 @@ use crate::models::MessageState;
 use anyhow::{Context, Result};
 use clap::Parser;
 use database::MailboxSummary;
-use std::{process::Command, vec};
+use std::{fs::create_dir_all, process::Command, vec};
 
 // Execute MAILBOX_POST_WRITE_CMD
 fn post_write() -> Result<()> {
@@ -29,7 +29,11 @@ fn post_write() -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let mut db = Database::new()?;
+    let project_dirs = directories::ProjectDirs::from("com", "canac", "mailbox")
+        .context("Couldn't determine application directory")?;
+    let data_dir = project_dirs.data_local_dir();
+    create_dir_all(data_dir).context("Couldn't create application directory")?;
+    let mut db = Database::new(Some(data_dir.join("mailbox.db")))?;
 
     let cli = Cli::parse();
     match cli {
