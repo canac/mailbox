@@ -64,7 +64,7 @@ The possible values for state are:
 - `unarchived` (only unread and read messages)
 - `all` (all messages, regardless of state)
 
-Messages can also be filtered by their mailbox with the `--mailbox` flag. `view`, `read`, `archive`, and `clear` all accept the `--mailbox` flag.
+Messages can also be filtered by their mailbox with the `--mailbox` flag. `view`, `read`, `archive`, and `clear` all accept the `--mailbox` flag. When messages are categorized into sub mailboxes separated by a `/` (`first-script/errors`, for example), the `--mailbox` filter include the parent mailbox and any sub mailboxes.
 
 ```sh
 $ mailbox add first-script "Hello, world!"
@@ -73,12 +73,20 @@ $ mailbox add first-script "Hello, world!"
 $ mailbox add second-script "Hello, universe!"
 * Hello, world! [second-script] @ 2022-03-14 05:09:25
 
+$ mailbox add second-script/errors "Whoops!"
+* Hello, world! [second-script/errors] @ 2022-03-14 05:09:25
+
 $ mailbox view
 * Hello, world! [first-script] @ 2022-03-14 05:09:25
 * Hello, world! [second-script] @ 2022-03-14 05:09:25
+* Whoops! [second-script/errors] @ 2022-03-14 05:09:25
 
 $ mailbox view --mailbox=second-script
 * Hello, world! [second-script] @ 2022-03-14 05:09:25
+* Whoops! [second-script/errors] @ 2022-03-14 05:09:25
+
+$ mailbox view --mailbox=second-script/errors
+* Whoops! [second-script/errors] @ 2022-03-14 05:09:25
 ```
 
 ## Clearing messages

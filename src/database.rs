@@ -271,12 +271,52 @@ mod tests {
     }
 
     #[test]
-    fn test_load_with_filters() -> Result<()> {
+    fn test_load_with_mailbox_filter() -> Result<()> {
         let mut db = get_populated_db()?;
         assert_eq!(
             db.load_messages(&MessageFilter::new().with_mailbox("unread"))?
                 .len(),
             2
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_load_with_states_filter() -> Result<()> {
+        let mut db = get_populated_db()?;
+        assert_eq!(
+            db.load_messages(
+                &MessageFilter::new().with_states(vec![MessageState::Read, MessageState::Archived])
+            )?
+            .len(),
+            4
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_load_with_sub_mailbox_filters() -> Result<()> {
+        let mut db = get_populated_db()?;
+        db.add_message("a", "message", None)?;
+        db.add_message("ab", "message", None)?;
+        db.add_message("a/b", "message", None)?;
+        db.add_message("a/c", "message", None)?;
+        db.add_message("a/b/c", "message", None)?;
+        db.add_message("a/c/b", "message", None)?;
+        assert_eq!(
+            db.load_messages(&MessageFilter::new().with_mailbox("a"))?
+                .len(),
+            5
+        );
+        assert_eq!(
+            db.load_messages(&MessageFilter::new().with_mailbox("a/b"))?
+                .len(),
+            2
+        );
+        assert_eq!(
+            db.load_messages(&MessageFilter::new().with_mailbox("a/b/c"))?
+                .len(),
+            1
         );
         Ok(())
     }

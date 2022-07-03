@@ -41,11 +41,14 @@ impl MessageFilter {
     // Generate a sea-query where expression message filter
     pub fn get_where(&self) -> Condition {
         Cond::all()
-            .add_option(
-                self.mailbox
-                    .as_ref()
-                    .map(|mailbox| Expr::col(MessageIden::Mailbox).eq(mailbox.clone())),
-            )
+            .add_option(self.mailbox.as_ref().map(|mailbox| {
+                Cond::any()
+                    .add(Expr::col(MessageIden::Mailbox).eq(mailbox.clone()))
+                    .add(Expr::cust_with_values(
+                        "mailbox GLOB ?",
+                        vec![format!("{}/*", mailbox)],
+                    ))
+            }))
             .add_option(self.states.as_ref().map(|states| {
                 Expr::col(MessageIden::State).is_in(
                     states
