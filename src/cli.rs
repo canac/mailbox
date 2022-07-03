@@ -34,6 +34,7 @@ pub enum Cli {
     /// View messages
     View {
         /// Only view messages in a particular mailbox
+        #[clap(short = 'm', long)]
         mailbox: Option<String>,
 
         /// Only view messages in a particular state
@@ -44,18 +45,21 @@ pub enum Cli {
     /// Mark unread messages as read
     Read {
         /// Only read messages in a particular mailbox
+        #[clap(short = 'm', long)]
         mailbox: Option<String>,
     },
 
     /// Archive all read and unread messages
     Archive {
         /// Only archive messages in a particular mailbox
+        #[clap(short = 'm', long)]
         mailbox: Option<String>,
     },
 
     /// Permanently clear archived messages
     Clear {
         /// Only clear archived messages in a particular mailbox
+        #[clap(short = 'm', long)]
         mailbox: Option<String>,
     },
 
