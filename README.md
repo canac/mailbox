@@ -104,3 +104,18 @@ $ mailbox view --state=all
 ## Typical workflow
 
 A typical workflow when using mailbox is to first check for any new messages by running `mailbox view`. Then, if there aren't any messages that you want to continue to be reminded about, run `mailbox read`. Alternatively, when you don't want to see any of those messages again, run `mailbox archive`. Periodically, optionally run `mailbox clear` to prevent archived messages from building up.
+
+## Starship notifications
+
+You'll probably want to get notifications for your unread messages somehow. A custom terminal prompt via [Starship](https://starship.rs) is a great way to do that! Add this to `~/.config/starship.toml` enable mailbox notifications:
+
+```toml
+# Put the mailbox notifications before all other modules
+format = "${custom.mailbox}$all"
+
+[custom.mailbox]
+command = 'mailbox view | wc -l' # count the number of unread messages
+when = 'test $(mailbox view | wc -l) -gt 0' # only show when there are unread messages
+format = '[$output](bold yellow) '
+shell = ['bash', '--noprofile', '--norc']
+```
