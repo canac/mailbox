@@ -39,10 +39,14 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
     match cli {
-        Cli::Add { mailbox, content } => {
+        Cli::Add {
+            mailbox,
+            content,
+            state,
+        } => {
             println!(
                 "{}",
-                db.add_message(mailbox.as_str(), content.as_str(), None)?
+                db.add_message(mailbox.as_str(), content.as_str(), Some(state))?
             );
             post_write()?;
         }

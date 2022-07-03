@@ -1,6 +1,7 @@
-use clap::{ArgEnum, Parser};
+use crate::models;
+use clap::{Parser, ValueEnum};
 
-#[derive(ArgEnum, Clone)]
+#[derive(ValueEnum, Clone)]
 pub enum MessageState {
     Unread,
     Read,
@@ -24,6 +25,10 @@ pub enum Cli {
 
         /// Message content
         content: String,
+
+        /// Mailbox state
+        #[clap(value_enum, short = 's', long, default_value = "unread")]
+        state: models::MessageState,
     },
 
     /// View messages
@@ -32,7 +37,7 @@ pub enum Cli {
         mailbox: Option<String>,
 
         /// Only view messages in a particular state
-        #[clap(arg_enum, short = 's', long, default_value = "unread")]
+        #[clap(value_enum, short = 's', long, default_value = "unread")]
         state: MessageState,
     },
 

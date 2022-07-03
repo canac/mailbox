@@ -1,8 +1,9 @@
 use anyhow::anyhow;
+use clap::ValueEnum;
 use rusqlite::{Result, Row};
 use sea_query::{enum_def, Value};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, ValueEnum)]
 pub enum MessageState {
     Unread,
     Read,
