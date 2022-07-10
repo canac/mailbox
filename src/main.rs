@@ -92,7 +92,7 @@ fn main() -> Result<()> {
                     .with_states(states),
             )?;
             for message in messages {
-                println!("{}", message);
+                println!("{message}");
             }
         }
         Cli::Read { mailbox } => {
@@ -103,7 +103,7 @@ fn main() -> Result<()> {
                 MessageState::Read,
             )?;
             for message in messages {
-                println!("{}", message);
+                println!("{message}");
             }
             post_write()?;
         }
@@ -115,7 +115,7 @@ fn main() -> Result<()> {
                 MessageState::Archived,
             )?;
             for message in messages {
-                println!("{}", message);
+                println!("{message}");
             }
             post_write()?;
         }
@@ -126,7 +126,7 @@ fn main() -> Result<()> {
                     .with_states(vec![MessageState::Archived]),
             )?;
             for message in messages {
-                println!("{}", message);
+                println!("{message}");
             }
             post_write()?;
         }

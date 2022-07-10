@@ -46,7 +46,7 @@ impl MessageFilter {
                     .add(Expr::col(MessageIden::Mailbox).eq(mailbox.clone()))
                     .add(Expr::cust_with_values(
                         "mailbox GLOB ?",
-                        vec![format!("{}/*", mailbox)],
+                        vec![format!("{mailbox}/*")],
                     ))
             }))
             .add_option(self.states.as_ref().map(|states| {
