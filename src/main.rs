@@ -8,7 +8,6 @@ use crate::database::Database;
 use crate::models::MessageState;
 use anyhow::{Context, Result};
 use clap::Parser;
-use database::MailboxSummary;
 use message_filter::MessageFilter;
 use std::{fs::create_dir_all, process::Command, vec};
 
@@ -132,16 +131,8 @@ fn main() -> Result<()> {
             post_write()?;
         }
         Cli::Summarize => {
-            let summaries = db.summarize_messages()?;
-            for MailboxSummary {
-                mailbox,
-                count,
-                unread,
-                read,
-                archived,
-            } in summaries
-            {
-                println!("{mailbox}: {count} ({unread}/{read}/{archived})");
+            for summary in db.summarize_messages()? {
+                println!("{summary}");
             }
         }
     };

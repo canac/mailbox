@@ -50,15 +50,19 @@ pub struct Message {
 
 impl std::fmt::Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use colored::*;
+
         let marker = match self.state {
-            MessageState::Unread => "*",
-            MessageState::Read => " ",
-            MessageState::Archived => "-",
+            MessageState::Unread => "*".red().bold(),
+            MessageState::Read => " ".into(),
+            MessageState::Archived => "-".into(),
         };
         write!(
             f,
             "{marker} {} [{}] @ {}",
-            self.content, self.mailbox, self.timestamp
+            self.content,
+            self.mailbox.bold().green(),
+            self.timestamp.to_string().yellow()
         )
     }
 }

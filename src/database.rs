@@ -16,6 +16,22 @@ pub struct MailboxSummary {
     pub archived: i64,
 }
 
+impl std::fmt::Display for MailboxSummary {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use colored::*;
+
+        write!(
+            f,
+            "{}: {} ({}/{}/{})",
+            self.mailbox.bold().green(),
+            self.count,
+            self.unread.to_string().bold().red(),
+            self.read,
+            self.archived
+        )
+    }
+}
+
 pub struct Database {
     connection: Connection,
 }
