@@ -29,7 +29,7 @@ pub enum Cli {
         /// Mailbox name
         mailbox: String,
 
-        /// Message content
+        /// Message content ("-" to read from stdin delimited by newlines)
         content: String,
 
         /// Mailbox state

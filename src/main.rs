@@ -49,10 +49,28 @@ fn main() -> Result<()> {
                 cli::AddMessageState::Read => MessageState::Read,
                 cli::AddMessageState::Archived => MessageState::Archived,
             };
-            println!(
-                "{}",
-                db.add_message(mailbox.as_str(), content.as_str(), Some(state))?
-            );
+            let contents = match content.as_str() {
+                "-" => std::io::stdin()
+                    .lines()
+                    .filter_map(|result| match result {
+                        Ok(line) => {
+                            if line.is_empty() {
+                                None
+                            } else {
+                                Some(line)
+                            }
+                        }
+                        Err(_) => None,
+                    })
+                    .collect(),
+                _ => vec![content],
+            };
+            for content in contents {
+                println!(
+                    "{}",
+                    db.add_message(mailbox.as_str(), content.as_str(), Some(state))?
+                );
+            }
             post_write()?;
         }
         Cli::View { mailbox, state } => {
