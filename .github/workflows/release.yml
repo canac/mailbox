@@ -62,7 +62,7 @@ jobs:
         if: runner.os != 'Windows'
         run: >
           tar -cv
-          LICENSE README.md default_config.toml
+          LICENSE README.md
           man/
           -C contrib/ completions/ -C ../
           -C target/${{ matrix.target }}/release/ mailbox
@@ -71,7 +71,7 @@ jobs:
         if: runner.os == 'Windows'
         run: >
           7z a ${{ env.ARTIFACT_NAME }}.zip
-          LICENSE README.md default_config.toml
+          LICENSE README.md
           ./man/
           ./contrib/completions/
           ./target/${{ matrix.target }}/release/mailbox.exe
