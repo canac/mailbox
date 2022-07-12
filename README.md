@@ -114,8 +114,9 @@ You'll probably want to get notifications for your unread messages somehow. A cu
 format = "${custom.mailbox}$all"
 
 [custom.mailbox]
-command = 'mailbox view | wc -l' # count the number of unread messages
-when = 'test $(mailbox view | wc -l) -gt 0' # only show when there are unread messages
-format = '[$output](bold yellow) '
+# Count the number of unread messages, and display the count if there are any
+command = 'export count=$(mailbox view | wc -l) && test $count -gt 0 && echo $count'
+when = true
+format = '[($output )](bold yellow)'
 shell = ['bash', '--noprofile', '--norc']
 ```
