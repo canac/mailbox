@@ -1,6 +1,6 @@
 use self::sea_query_driver_rusqlite::RusqliteValues;
+use crate::message::{Message, MessageIden, MessageState};
 use crate::message_filter::MessageFilter;
-use crate::models::{Message, MessageIden, MessageState};
 use anyhow::{Context, Result};
 use rusqlite::Connection;
 use sea_query::{Alias, ColumnDef, Expr, Func, Order, Query, SqliteQueryBuilder, Table, Value};

@@ -1,4 +1,4 @@
-use crate::models::{MessageIden, MessageState};
+use crate::message::{MessageIden, MessageState};
 use sea_query::{Cond, Condition, Expr};
 
 #[derive(Clone)]

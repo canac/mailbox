@@ -1,11 +1,11 @@
 mod cli;
 mod database;
+mod message;
 mod message_filter;
-mod models;
 
 use crate::cli::Cli;
 use crate::database::Database;
-use crate::models::MessageState;
+use crate::message::MessageState;
 use anyhow::{Context, Result};
 use clap::Parser;
 use message_filter::MessageFilter;
