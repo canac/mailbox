@@ -9,25 +9,7 @@ use crate::models::MessageState;
 use anyhow::{Context, Result};
 use clap::Parser;
 use message_filter::MessageFilter;
-use std::{fs::create_dir_all, process::Command, vec};
-
-// Execute MAILBOX_POST_WRITE_CMD
-fn post_write() -> Result<()> {
-    if let Some(cmd) = std::env::var_os("MAILBOX_POST_WRITE_CMD") {
-        if cmd.len() == 0 {
-            return Ok(());
-        }
-
-        return Command::new("sh")
-            .arg("-c")
-            .arg(cmd)
-            .output()
-            .map(|_| ())
-            .context("Error running post write command");
-    }
-
-    Ok(())
-}
+use std::{fs::create_dir_all, vec};
 
 fn main() -> Result<()> {
     let project_dirs = directories::ProjectDirs::from("com", "canac", "mailbox")
@@ -70,7 +52,6 @@ fn main() -> Result<()> {
                     db.add_message(mailbox.as_str(), content.as_str(), Some(state))?
                 );
             }
-            post_write()?;
         }
         Cli::View { mailbox, state } => {
             let states = match state {
@@ -105,7 +86,6 @@ fn main() -> Result<()> {
             for message in messages {
                 println!("{message}");
             }
-            post_write()?;
         }
         Cli::Archive { mailbox } => {
             let messages = db.change_state(
@@ -117,7 +97,6 @@ fn main() -> Result<()> {
             for message in messages {
                 println!("{message}");
             }
-            post_write()?;
         }
         Cli::Clear { mailbox } => {
             let messages = db.delete_messages(
@@ -128,7 +107,6 @@ fn main() -> Result<()> {
             for message in messages {
                 println!("{message}");
             }
-            post_write()?;
         }
         Cli::Summarize => {
             for summary in db.summarize_messages()? {
