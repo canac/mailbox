@@ -65,7 +65,7 @@ impl Database {
             .col(
                 ColumnDef::new(MessageIden::Timestamp)
                     .date_time()
-                    .extra("DEFAULT (DATETIME('now','localtime'))".to_string()),
+                    .extra("DEFAULT CURRENT_TIMESTAMP".to_string()),
             )
             .col(
                 ColumnDef::new(MessageIden::Mailbox)

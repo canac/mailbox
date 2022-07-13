@@ -1,4 +1,6 @@
 use anyhow::anyhow;
+use chrono::TimeZone;
+use chrono_humanize::HumanTime;
 use clap::ValueEnum;
 use rusqlite::{Result, Row};
 use sea_query::{enum_def, Value};
@@ -57,12 +59,26 @@ impl std::fmt::Display for Message {
             MessageState::Read => " ".into(),
             MessageState::Archived => "-".into(),
         };
+        // Display the time as a human-readable relative time for terminals and
+        // as a timestamp when redirecting the output
+        let time = if atty::is(atty::Stream::Stdout) {
+            HumanTime::from(
+                self.timestamp
+                    .signed_duration_since(chrono::Utc::now().naive_utc()),
+            )
+            .to_string()
+        } else {
+            chrono::Local
+                .timestamp(self.timestamp.timestamp(), 0)
+                .naive_local()
+                .to_string()
+        };
         write!(
             f,
             "{marker} {} [{}] @ {}",
             self.content,
             self.mailbox.bold().green(),
-            self.timestamp.to_string().yellow()
+            time.yellow()
         )
     }
 }
