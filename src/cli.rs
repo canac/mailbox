@@ -17,13 +17,7 @@ pub enum ViewMessageState {
 }
 
 #[derive(Parser)]
-#[clap(
-    name = env!("CARGO_PKG_NAME"),
-    about = env!("CARGO_PKG_DESCRIPTION"),
-    version = env!("CARGO_PKG_VERSION"),
-    author = env!("CARGO_PKG_AUTHORS")
-)]
-pub enum Cli {
+pub enum Command {
     /// Add a message to a mailbox
     Add {
         /// Mailbox name
@@ -71,4 +65,20 @@ pub enum Cli {
 
     /// Summarize all mailboxes
     Summarize,
+}
+
+#[derive(Parser)]
+#[clap(
+    name = env!("CARGO_PKG_NAME"),
+    about = env!("CARGO_PKG_DESCRIPTION"),
+    version = env!("CARGO_PKG_VERSION"),
+    author = env!("CARGO_PKG_AUTHORS")
+)]
+pub struct Cli {
+    #[clap(subcommand)]
+    pub command: Command,
+
+    /// Show all messages in output instead of summarizing
+    #[clap(short = 'f', long, global = true)]
+    pub full_output: bool,
 }

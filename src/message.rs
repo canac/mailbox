@@ -1,6 +1,4 @@
 use anyhow::anyhow;
-use chrono::TimeZone;
-use chrono_humanize::HumanTime;
 use clap::ValueEnum;
 use rusqlite::{Result, Row};
 use sea_query::{enum_def, Value};
@@ -48,39 +46,6 @@ pub struct Message {
     pub mailbox: String,
     pub content: String,
     pub state: MessageState,
-}
-
-impl std::fmt::Display for Message {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use colored::*;
-
-        let marker = match self.state {
-            MessageState::Unread => "*".red().bold(),
-            MessageState::Read => " ".into(),
-            MessageState::Archived => "-".into(),
-        };
-        // Display the time as a human-readable relative time for terminals and
-        // as a timestamp when redirecting the output
-        let time = if atty::is(atty::Stream::Stdout) {
-            HumanTime::from(
-                self.timestamp
-                    .signed_duration_since(chrono::Utc::now().naive_utc()),
-            )
-            .to_string()
-        } else {
-            chrono::Local
-                .timestamp(self.timestamp.timestamp(), 0)
-                .naive_local()
-                .to_string()
-        };
-        write!(
-            f,
-            "{marker} {} [{}] @ {}",
-            self.content,
-            self.mailbox.bold().green(),
-            time.yellow()
-        )
-    }
 }
 
 impl Message {

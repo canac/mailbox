@@ -2,13 +2,15 @@ mod cli;
 mod database;
 mod message;
 mod message_filter;
+mod message_formatter;
 
-use crate::cli::Cli;
+use crate::cli::{AddMessageState, Cli, Command};
 use crate::database::Database;
 use crate::message::MessageState;
 use anyhow::{Context, Result};
 use clap::Parser;
 use message_filter::MessageFilter;
+use message_formatter::{MessageFormatter, TimestampFormat};
 use std::{fs::create_dir_all, vec};
 
 fn main() -> Result<()> {
@@ -19,18 +21,39 @@ fn main() -> Result<()> {
     let mut db = Database::new(Some(data_dir.join("mailbox.db")))?;
 
     let cli = Cli::parse();
-    match cli {
-        Cli::Add {
+
+    let tty = atty::is(atty::Stream::Stdout);
+    let default_height = 8;
+    let formatter = MessageFormatter::new()
+        .with_color(tty)
+        .with_timestamp_format(if tty {
+            TimestampFormat::Relative
+        } else {
+            TimestampFormat::Local
+        })
+        // Use slightly less than all of the available terminal space
+        .with_max_lines(if !cli.full_output && tty {
+            Some(
+                crossterm::terminal::size().map_or(default_height, |(_, height)| {
+                    std::cmp::max(default_height, (height - 4) as usize)
+                }),
+            )
+        } else {
+            None
+        });
+
+    match cli.command {
+        Command::Add {
             mailbox,
             content,
             state,
         } => {
             let state = match state {
-                cli::AddMessageState::Unread => MessageState::Unread,
-                cli::AddMessageState::Read => MessageState::Read,
-                cli::AddMessageState::Archived => MessageState::Archived,
+                AddMessageState::Unread => MessageState::Unread,
+                AddMessageState::Read => MessageState::Read,
+                AddMessageState::Archived => MessageState::Archived,
             };
-            let contents = match content.as_str() {
+            let messages = match content.as_str() {
                 "-" => std::io::stdin()
                     .lines()
                     .filter_map(|result| match result {
@@ -45,15 +68,13 @@ fn main() -> Result<()> {
                     })
                     .collect(),
                 _ => vec![content],
-            };
-            for content in contents {
-                println!(
-                    "{}",
-                    db.add_message(mailbox.as_str(), content.as_str(), Some(state))?
-                );
             }
+            .iter()
+            .map(|content| db.add_message(mailbox.as_str(), content.as_str(), Some(state)))
+            .collect::<Result<Vec<_>>>()?;
+            print!("{}", formatter.format_messages(&messages))
         }
-        Cli::View { mailbox, state } => {
+        Command::View { mailbox, state } => {
             let states = match state {
                 cli::ViewMessageState::Unread => vec![MessageState::Unread],
                 cli::ViewMessageState::Read => vec![MessageState::Read],
@@ -72,43 +93,35 @@ fn main() -> Result<()> {
                     .with_mailbox_option(mailbox)
                     .with_states(states),
             )?;
-            for message in messages {
-                println!("{message}");
-            }
+            print!("{}", formatter.format_messages(&messages))
         }
-        Cli::Read { mailbox } => {
+        Command::Read { mailbox } => {
             let messages = db.change_state(
                 &MessageFilter::new()
                     .with_mailbox_option(mailbox)
                     .with_states(vec![MessageState::Unread]),
                 MessageState::Read,
             )?;
-            for message in messages {
-                println!("{message}");
-            }
+            print!("{}", formatter.format_messages(&messages))
         }
-        Cli::Archive { mailbox } => {
+        Command::Archive { mailbox } => {
             let messages = db.change_state(
                 &MessageFilter::new()
                     .with_mailbox_option(mailbox)
                     .with_states(vec![MessageState::Unread, MessageState::Read]),
                 MessageState::Archived,
             )?;
-            for message in messages {
-                println!("{message}");
-            }
+            print!("{}", formatter.format_messages(&messages))
         }
-        Cli::Clear { mailbox } => {
+        Command::Clear { mailbox } => {
             let messages = db.delete_messages(
                 &MessageFilter::new()
                     .with_mailbox_option(mailbox)
                     .with_states(vec![MessageState::Archived]),
             )?;
-            for message in messages {
-                println!("{message}");
-            }
+            print!("{}", formatter.format_messages(&messages))
         }
-        Cli::Summarize => {
+        Command::Summarize => {
             for summary in db.summarize_messages()? {
                 println!("{summary}");
             }
