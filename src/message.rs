@@ -2,12 +2,27 @@ use anyhow::anyhow;
 use clap::ValueEnum;
 use rusqlite::{Result, Row};
 use sea_query::{enum_def, Value};
+use std::fmt::{self, Display, Formatter};
 
 #[derive(Clone, Copy, ValueEnum)]
 pub enum MessageState {
     Unread,
     Read,
     Archived,
+}
+
+impl Display for MessageState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                MessageState::Unread => "*",
+                MessageState::Read => " ",
+                MessageState::Archived => "-",
+            }
+        )
+    }
 }
 
 impl TryFrom<i64> for MessageState {

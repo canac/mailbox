@@ -1,8 +1,10 @@
 mod cli;
 mod database;
 mod message;
+mod message_components;
 mod message_filter;
 mod message_formatter;
+mod truncate;
 
 use crate::cli::{AddMessageState, Cli, Command};
 use crate::database::Database;
@@ -23,7 +25,20 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let tty = atty::is(atty::Stream::Stdout);
-    let default_height = 8;
+    const DEFAULT_WIDTH: usize = 80;
+    const DEFAULT_HEIGHT: usize = 8;
+    let size = if !cli.full_output && tty {
+        match crossterm::terminal::size() {
+            Ok((width, height)) => Some((
+                width as usize,
+                // Use slightly less than all of the available terminal lines
+                std::cmp::max(DEFAULT_HEIGHT, height.saturating_sub(4) as usize),
+            )),
+            Err(_) => Some((DEFAULT_WIDTH, DEFAULT_HEIGHT)),
+        }
+    } else {
+        None
+    };
     let formatter = MessageFormatter::new()
         .with_color(tty)
         .with_timestamp_format(if tty {
@@ -31,16 +46,8 @@ fn main() -> Result<()> {
         } else {
             TimestampFormat::Local
         })
-        // Use slightly less than all of the available terminal space
-        .with_max_lines(if !cli.full_output && tty {
-            Some(
-                crossterm::terminal::size().map_or(default_height, |(_, height)| {
-                    std::cmp::max(default_height, (height - 4) as usize)
-                }),
-            )
-        } else {
-            None
-        });
+        .with_max_columns(size.map(|(width, _)| width))
+        .with_max_lines(size.map(|(_, height)| height));
 
     match cli.command {
         Command::Add {

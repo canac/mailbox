@@ -418,6 +418,7 @@ dependencies = [
  "directories",
  "rusqlite",
  "sea-query",
+ "unicode-segmentation",
 ]
 
 [[package]]

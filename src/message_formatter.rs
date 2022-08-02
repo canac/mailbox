@@ -1,4 +1,6 @@
 use crate::message::{Message, MessageState};
+use crate::message_components::MessageComponents;
+use crate::truncate::TruncatedLine;
 use chrono::{Local, TimeZone, Utc};
 use chrono_humanize::HumanTime;
 use std::collections::HashMap;
@@ -56,6 +58,7 @@ impl<'messages> Mailbox<'messages> {
 pub struct MessageFormatter {
     color: bool,
     timestamp_format: TimestampFormat,
+    max_columns: Option<usize>,
     max_lines: Option<usize>,
 }
 
@@ -68,6 +71,7 @@ impl MessageFormatter {
         Self {
             color: true,
             timestamp_format: TimestampFormat::Relative,
+            max_columns: None,
             max_lines: None,
         }
     }
@@ -85,26 +89,23 @@ impl MessageFormatter {
         }
     }
 
+    // Configure the maximum number of output columns, None is no limit
+    pub fn with_max_columns(self, max_columns: Option<usize>) -> Self {
+        Self {
+            max_columns,
+            ..self
+        }
+    }
+
     // Configure the maximum number of output lines, None is no limit
     pub fn with_max_lines(self, max_lines: Option<usize>) -> Self {
         Self { max_lines, ..self }
     }
 
     // Format a single message into a string. There will not be a newline at the end.
-    pub fn format_message(&self, message: &Message) -> String {
+    pub fn format_message(&self, message: &Message, appendix: Option<String>) -> String {
         use colored::*;
 
-        let marker = match message.state {
-            MessageState::Unread => {
-                if self.color {
-                    "*".red().bold()
-                } else {
-                    "*".into()
-                }
-            }
-            MessageState::Read => " ".into(),
-            MessageState::Archived => "-".into(),
-        };
         // Display the time as a human-readable relative time for terminals and
         // as a timestamp when redirecting the output
         let time = match self.timestamp_format {
@@ -119,20 +120,46 @@ impl MessageFormatter {
                 .to_string(),
             TimestampFormat::Utc => Utc.timestamp(message.timestamp.timestamp(), 0).to_string(),
         };
-        format!(
-            "{marker} {} [{}] @ {}",
-            message.content,
-            if self.color {
-                message.mailbox.bold().green()
+
+        let max_columns = self.max_columns.unwrap_or(usize::MAX);
+        let components = MessageComponents {
+            state: message.state,
+            content: message.content.clone(),
+            mailbox: message.mailbox.clone(),
+            time,
+            appendix: appendix.unwrap_or_default(),
+        }
+        .truncate(max_columns);
+
+        let mut line = TruncatedLine::new(max_columns);
+        line.append(
+            components.state.to_string(),
+            if matches!(message.state, MessageState::Unread) && self.color {
+                Some(|str: String| str.red().bold())
             } else {
-                message.mailbox.normal()
+                None
             },
+        );
+        line.append(format!(" {} [", components.content), None);
+        line.append(
+            components.mailbox,
             if self.color {
-                time.yellow()
+                Some(|str: String| str.green().bold())
             } else {
-                time.normal()
-            }
-        )
+                None
+            },
+        );
+        line.append("] @ ", None);
+        line.append(
+            components.time,
+            if self.color {
+                Some(|str: String| str.yellow())
+            } else {
+                None
+            },
+        );
+        line.append(components.appendix, None);
+        line.to_string()
     }
 
     // Format multiple messages into a string. There will be a newline at the end.
@@ -222,15 +249,15 @@ impl MessageFormatter {
                         // mailbox, signify that messages were hidden
                         let hidden_messages_hint =
                             if hidden_message_count > 0 && index == mailbox.allocated_lines - 1 {
-                                format!(
+                                Some(format!(
                                     " (+{} older {})",
                                     hidden_message_count,
                                     Self::pluralize_word(Word::Message, hidden_message_count)
-                                )
+                                ))
                             } else {
-                                "".to_string()
+                                None
                             };
-                        format!("{}{hidden_messages_hint}\n", self.format_message(message))
+                        self.format_message(message, hidden_messages_hint) + "\n"
                     })
             })
             .collect::<Vec<_>>()
@@ -294,6 +321,13 @@ mod tests {
         }
     }
 
+    // Create a generic message formatter
+    fn make_formatter() -> MessageFormatter {
+        MessageFormatter::new()
+            .with_color(false)
+            .with_timestamp_format(TimestampFormat::Utc)
+    }
+
     #[test]
     fn test_format() {
         let messages = vec![make_message("a", "foo", 0)];
@@ -338,6 +372,75 @@ mod tests {
 * c [foo] @ 2022-01-01 00:00:00 UTC
 * d [foo] @ 2022-01-01 00:00:00 UTC
 * f [foo] @ 2022-01-01 00:00:00 UTC\n"
+        );
+    }
+
+    #[test]
+    fn test_truncate_content() {
+        let formatter = make_formatter().with_max_columns(Some(60));
+        assert_eq!(
+            formatter
+                .format_message(
+                    &make_message(
+                        "foo",
+                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit",
+                        0
+                    ),
+                    Some(" appendix".to_string())
+                )
+                .as_str(),
+            "* Lorem ipsum dolo… [foo] @ 2022-01-01 00:00:00 UTC appendix"
+        );
+    }
+
+    #[test]
+    fn test_truncate_mailbox() {
+        let formatter = make_formatter().with_max_columns(Some(60));
+        assert_eq!(
+            formatter
+                .format_message(
+                    &make_message(
+                        "really-really-really-really-really-really-really-really-long",
+                        "a",
+                        0
+                    ),
+                    Some(" appendix".to_string())
+                )
+                .as_str(),
+            "* a [really-really-real…] @ 2022-01-01 00:00:00 UTC appendix"
+        );
+    }
+
+    #[test]
+    fn test_truncate_mailbox_and_content() {
+        let formatter = make_formatter().with_max_columns(Some(60));
+        assert_eq!(
+            formatter
+                .format_message(
+                    &make_message(
+                        "really-really-really-really-really-really-really-really-long",
+                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit",
+                        0
+                    ),
+                    Some(" appendix".to_string())
+                )
+                .as_str(),
+            "* Lorem ips… [really-re…] @ 2022-01-01 00:00:00 UTC appendix"
+        );
+    }
+
+    #[test]
+    fn test_truncate_all() {
+        let formatter = make_formatter().with_max_columns(Some(20));
+        assert_eq!(
+            formatter
+                .format_message(&make_message(
+                    "really-really-really-really-really-really-really-really-long",
+                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+                    0
+                ), Some("appendix".to_string()))
+                .as_str(),
+            "* Lor… [rea…] @ 202…"
         );
     }
 
