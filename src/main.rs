@@ -1,4 +1,5 @@
 mod cli;
+mod config;
 mod database;
 mod message;
 mod message_components;
@@ -7,6 +8,7 @@ mod message_formatter;
 mod truncate;
 
 use crate::cli::{AddMessageState, Cli, Command};
+use crate::config::{Config, Override};
 use crate::database::Database;
 use crate::message::MessageState;
 use anyhow::{Context, Result};
@@ -21,6 +23,11 @@ fn main() -> Result<()> {
     let data_dir = project_dirs.data_local_dir();
     create_dir_all(data_dir).context("Couldn't create application directory")?;
     let mut db = Database::new(Some(data_dir.join("mailbox.db")))?;
+
+    let config = match std::env::var_os("MAILBOX_CONFIG") {
+        Some(config_path) => Some(Config::load(config_path.into())?),
+        None => None,
+    };
 
     let cli = Cli::parse();
 
@@ -55,7 +62,7 @@ fn main() -> Result<()> {
             content,
             state,
         } => {
-            let state = match state {
+            let cli_state = match state {
                 AddMessageState::Unread => MessageState::Unread,
                 AddMessageState::Read => MessageState::Read,
                 AddMessageState::Archived => MessageState::Archived,
@@ -77,7 +84,20 @@ fn main() -> Result<()> {
                 _ => vec![content],
             }
             .iter()
-            .map(|content| db.add_message(mailbox.as_str(), content.as_str(), Some(state)))
+            .filter_map(|content| {
+                let overridden_state = config
+                    .as_ref()
+                    .and_then(|config| config.get_override(&mailbox));
+                let state = match overridden_state {
+                    Some(Override::Unread) => MessageState::Unread,
+                    Some(Override::Read) => MessageState::Read,
+                    Some(Override::Archived) => MessageState::Archived,
+                    // Skip adding this message entirely
+                    Some(Override::Ignored) => return None,
+                    None => cli_state,
+                };
+                Some(db.add_message(&mailbox, content, Some(state)))
+            })
             .collect::<Result<Vec<_>>>()?;
             print!("{}", formatter.format_messages(&messages))
         }

@@ -418,6 +418,8 @@ dependencies = [
  "directories",
  "rusqlite",
  "sea-query",
+ "serde",
+ "toml",
  "unicode-segmentation",
 ]
 
@@ -678,6 +680,9 @@ name = "serde"
 version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7af873f2c95b99fcb0bd0fe622a43e29514658873c8ceba88c4cb88833a22500"
+dependencies = [
+ "serde_derive",
+]
 
 [[package]]
 name = "serde_derive"
@@ -909,6 +914,15 @@ dependencies = [
  "quote",
  "standback",
  "syn",
+]
+
+[[package]]
+name = "toml"
+version = "0.5.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d82e1a7758622a465f8cee077614c73484dac5b836c02ff6a40d5d1010324d7"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
