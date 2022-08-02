@@ -106,8 +106,7 @@ impl MessageFormatter {
     pub fn format_message(&self, message: &Message, appendix: Option<String>) -> String {
         use colored::*;
 
-        // Display the time as a human-readable relative time for terminals and
-        // as a timestamp when redirecting the output
+        // Display the time differently based on the requested format
         let time = match self.timestamp_format {
             TimestampFormat::Relative => HumanTime::from(
                 message
@@ -245,7 +244,7 @@ impl MessageFormatter {
                     .take(mailbox.allocated_lines)
                     .enumerate()
                     .map(move |(index, message)| {
-                        // At the end the last displayed message in the
+                        // At the end of the final displayed message in the
                         // mailbox, signify that messages were hidden
                         let hidden_messages_hint =
                             if hidden_message_count > 0 && index == mailbox.allocated_lines - 1 {
