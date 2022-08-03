@@ -75,7 +75,7 @@ impl Database {
             )
             .col(
                 ColumnDef::new(MessageIden::Content)
-                    .integer()
+                    .string()
                     .not_null()
                     .extra("CHECK (LENGTH(content) > 0)".to_string()),
             )
