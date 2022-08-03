@@ -419,6 +419,7 @@ dependencies = [
  "rusqlite",
  "sea-query",
  "serde",
+ "serde_json",
  "toml",
  "unicode-segmentation",
 ]

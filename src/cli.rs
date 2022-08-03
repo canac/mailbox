@@ -1,13 +1,13 @@
 use clap::{Parser, ValueEnum};
 
-#[derive(ValueEnum, Clone)]
+#[derive(Clone, ValueEnum)]
 pub enum AddMessageState {
     Unread,
     Read,
     Archived,
 }
 
-#[derive(ValueEnum, Clone)]
+#[derive(Clone, ValueEnum)]
 pub enum ViewMessageState {
     Unread,
     Read,
@@ -23,13 +23,16 @@ pub enum Command {
         /// Mailbox name
         mailbox: String,
 
-        /// Message content ("-" to read from stdin delimited by newlines)
+        /// Message content
         content: String,
 
         /// Mailbox state
         #[clap(value_enum, short = 's', long, default_value = "unread")]
         state: AddMessageState,
     },
+
+    /// Add multiple messages
+    Import,
 
     /// View messages
     View {
