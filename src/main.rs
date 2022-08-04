@@ -36,6 +36,51 @@ struct ImportedMessage {
     state: Option<ImportMessageState>,
 }
 
+// Load the database connection
+fn load_database() -> Result<Database> {
+    let project_dirs = directories::ProjectDirs::from("com", "canac", "mailbox")
+        .context("Couldn't determine application directory")?;
+    let data_dir = project_dirs.data_local_dir();
+    create_dir_all(data_dir).context("Couldn't create application directory")?;
+    Database::new(Some(data_dir.join("mailbox.db")))
+}
+
+// Load the configuration file
+fn load_config() -> Result<Option<Config>> {
+    Ok(match std::env::var_os("MAILBOX_CONFIG") {
+        Some(config_path) => Some(Config::load(config_path.into())?),
+        None => None,
+    })
+}
+
+// Create the message formatter
+fn create_formatter(full_output: bool) -> Result<MessageFormatter> {
+    let tty = atty::is(atty::Stream::Stdout);
+    const DEFAULT_WIDTH: usize = 80;
+    const DEFAULT_HEIGHT: usize = 8;
+    let size = if !full_output && tty {
+        match crossterm::terminal::size() {
+            Ok((width, height)) => Some((
+                width as usize,
+                // Use slightly less than all of the available terminal lines
+                std::cmp::max(DEFAULT_HEIGHT, height.saturating_sub(4) as usize),
+            )),
+            Err(_) => Some((DEFAULT_WIDTH, DEFAULT_HEIGHT)),
+        }
+    } else {
+        None
+    };
+    Ok(MessageFormatter::new()
+        .with_color(tty)
+        .with_timestamp_format(if tty {
+            TimestampFormat::Relative
+        } else {
+            TimestampFormat::Local
+        })
+        .with_max_columns(size.map(|(width, _)| width))
+        .with_max_lines(size.map(|(_, height)| height)))
+}
+
 // Import messages into the database using the provided config to potentially
 // override their initial state
 fn import_messages(
@@ -96,43 +141,10 @@ fn read_messages_stdin() -> Vec<(String, String, Option<MessageState>)> {
 }
 
 fn main() -> Result<()> {
-    let project_dirs = directories::ProjectDirs::from("com", "canac", "mailbox")
-        .context("Couldn't determine application directory")?;
-    let data_dir = project_dirs.data_local_dir();
-    create_dir_all(data_dir).context("Couldn't create application directory")?;
-    let mut db = Database::new(Some(data_dir.join("mailbox.db")))?;
-
-    let config = match std::env::var_os("MAILBOX_CONFIG") {
-        Some(config_path) => Some(Config::load(config_path.into())?),
-        None => None,
-    };
-
+    let mut db = load_database()?;
+    let config = load_config()?;
     let cli = Cli::parse();
-
-    let tty = atty::is(atty::Stream::Stdout);
-    const DEFAULT_WIDTH: usize = 80;
-    const DEFAULT_HEIGHT: usize = 8;
-    let size = if !cli.full_output && tty {
-        match crossterm::terminal::size() {
-            Ok((width, height)) => Some((
-                width as usize,
-                // Use slightly less than all of the available terminal lines
-                std::cmp::max(DEFAULT_HEIGHT, height.saturating_sub(4) as usize),
-            )),
-            Err(_) => Some((DEFAULT_WIDTH, DEFAULT_HEIGHT)),
-        }
-    } else {
-        None
-    };
-    let formatter = MessageFormatter::new()
-        .with_color(tty)
-        .with_timestamp_format(if tty {
-            TimestampFormat::Relative
-        } else {
-            TimestampFormat::Local
-        })
-        .with_max_columns(size.map(|(width, _)| width))
-        .with_max_lines(size.map(|(_, height)| height));
+    let formatter = create_formatter(cli.full_output)?;
 
     match cli.command {
         Command::Add {
