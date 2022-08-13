@@ -8,7 +8,7 @@ The first step is creating a new message.
 
 ```sh
 $ mailbox add my-script "Hello, world!"
-* Hello, world! [my-script] @ 2022-03-14 05:09:25
+* Hello, world! [my-script] @ now
 ```
 
 Messages are organized into mailboxes. A mailbox is simply a collection of messages. The first argument to `mailbox add` is the mailbox name. The second argument is the message content. The output shows that a new message was created. The mailbox name is between the square brackets, and the timestamp is after the @ sign. The asterisk (\*) at the beginning is an indicator that the message hasn't been read yet.
@@ -19,14 +19,14 @@ As messages are created in the background, the next step is to read them. There 
 
 ```sh
 $ mailbox view
-* Hello, world! [my-script] @ 2022-03-14 05:09:25
+* Hello, world! [my-script] @ now
 ```
 
 `mailbox read` shows all unread messages _and_ marks them as read. It also displays all the messages that were read.
 
 ```sh
 $ mailbox read
-  Hello, world! [my-script] @ 2022-03-14 05:09:25
+  Hello, world! [my-script] @ now
 
 $ mailbox view
 
@@ -38,7 +38,7 @@ Notice that the unread asterisk is gone and `mailbox view` no longer shows the m
 
 ```sh
 $ mailbox archive
-- Hello, world! [my-script] @ 2022-03-14 05:09:25
+- Hello, world! [my-script] @ now
 ```
 
 The dash (-) is an indicator that the message is now archived.
@@ -53,7 +53,7 @@ Messages can be in one of three states:
 
 ```sh
 $ mailbox view --state=archived
-- Hello, world! [my-script] @ 2022-03-14 05:09:25
+- Hello, world! [my-script] @ now
 ```
 
 The possible values for state are:
@@ -68,25 +68,25 @@ Messages can also be filtered by their mailbox with the `--mailbox` flag. `view`
 
 ```sh
 $ mailbox add first-script "Hello, world!"
-* Hello, world! [first-script] @ 2022-03-14 05:09:25
+* Hello, world! [first-script] @ now
 
 $ mailbox add second-script "Hello, universe!"
-* Hello, world! [second-script] @ 2022-03-14 05:09:25
+* Hello, world! [second-script] @ now
 
 $ mailbox add second-script/errors "Whoops!"
-* Hello, world! [second-script/errors] @ 2022-03-14 05:09:25
+* Hello, world! [second-script/errors] @ now
 
 $ mailbox view
-* Hello, world! [first-script] @ 2022-03-14 05:09:25
-* Hello, world! [second-script] @ 2022-03-14 05:09:25
-* Whoops! [second-script/errors] @ 2022-03-14 05:09:25
+* Hello, world! [first-script] @ now
+* Hello, world! [second-script] @ now
+* Whoops! [second-script/errors] @ now
 
 $ mailbox view --mailbox=second-script
-* Hello, world! [second-script] @ 2022-03-14 05:09:25
-* Whoops! [second-script/errors] @ 2022-03-14 05:09:25
+* Hello, world! [second-script] @ now
+* Whoops! [second-script/errors] @ now
 
 $ mailbox view --mailbox=second-script/errors
-* Whoops! [second-script/errors] @ 2022-03-14 05:09:25
+* Whoops! [second-script/errors] @ now
 ```
 
 ## Clearing messages
@@ -95,7 +95,7 @@ The final stage of a message's lifecycle is being deleted. `mailbox clear` perma
 
 ```sh
 $ mailbox clear
-- Hello, world! [my-script] @ 2022-03-14 05:09:25
+- Hello, world! [my-script] @ now
 
 $ mailbox view --state=all
 
