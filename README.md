@@ -120,3 +120,53 @@ when = true
 format = '[($output )](bold yellow)'
 shell = ['bash', '--noprofile', '--norc']
 ```
+
+## Overrides
+
+`mailbox` gives you full control over how you get notified for messages, even when you don't have control over the command actually adding the messages. Suppose a non-crucial cron job adds a failure message when it can't connect to the network and you don't want to get spammed with messages every time you disconnect from WiFi. You can give `mailbox` a configuration file that overrides the state of messages or even ignores them outright based on their mailbox.
+
+First, create a `config.toml` file somewhere on your system and format it something like this:
+
+```toml
+[overrides]
+'my-script/error' = 'unread'
+'my-script/log' = 'read'
+'my-script/update' = 'archived'
+'my-script/error/network' = 'ignored'
+```
+
+Next, set the `MAILBOX_CONFIG` environment variable to the location of that script. You probably want to add it to your shell profile to make sure that it is passed to the command that adds the message. The overrides are applied on write, so if a command doesn't have `MAILBOX_CONFIG` set or doesn't let `mailbox` inherit `MAILBOX_CONFIG` from it's environment, then `mailbox` won't know about those overrides and won't be able to apply them.
+
+```bash
+echo "export MAILBOX_CONFIG=~/config.toml" >> ~/.bash_profile
+```
+
+Now the state of messages that my-script adds will be overridden.
+
+```sh
+# State will be overridden from read -> unread
+$ mailbox add my-script/error "Something catastrophic happened!" --state=read
+* Something catastrophic happened! [my-script/error] @ now
+
+# State will not be overridden
+$ mailbox add my-script/warning "Something less catastrophic happened" --state=read
+  Something less catastrophic happened [my-script/error] @ now
+
+# State will be overridden from unread -> archived
+$ mailbox add my-script/update "New my-script version available!" --state=unread
+- New my-script version available! [my-script/update] @ now
+
+# Message will be ignored entirely
+$ mailbox add my-script/error/network "Couldn't connect to the internet" --state=read
+
+```
+
+## Mass importing messages
+
+Messages can also be added in bulk. Simply pipe a newline separated list of JSON message entries to `mailbox import`. The message entries have two required fields, `mailbox` and `content`, and an optional field `state` that can have the value `unread`, `read`, or `archived`.
+
+```sh
+$ printf '{"mailbox":"my-script","content":"Hello, world!"}\n{"mailbox":"my-script","content":"Hello, universe!","state":"read"}' | mailbox import
+* Hello, world! [my-script] @ now
+  Hello, universe! [my-script] @ now
+```
