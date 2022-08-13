@@ -170,3 +170,68 @@ $ printf '{"mailbox":"my-script","content":"Hello, world!"}\n{"mailbox":"my-scri
 * Hello, world! [my-script] @ now
   Hello, universe! [my-script] @ now
 ```
+
+## Full output
+
+By default, `mailbox` tries to make its output fit within the available terminal space. To achieve this, it truncates long messages and summarizes mailboxes containing many messages.
+
+```sh
+$ mailbox add my-script "This is a super long message that will need to be truncated"
+$ mailbox add my-script/mailbox-1 "Message 1"
+$ mailbox add my-script/mailbox-1 "Message 2"
+$ mailbox add my-script/mailbox-1 "Message 3"
+$ mailbox add my-script/mailbox-1 "Message 4"
+$ mailbox add my-script/mailbox-1 "Message 5"
+$ mailbox add my-script/mailbox-1 "Message 6"
+$ mailbox add my-script/mailbox-1 "Message 7"
+$ mailbox add my-script/mailbox-1 "Message 8"
+$ mailbox add my-script/mailbox-1 "Message 9"
+$ mailbox add my-script/mailbox-1 "Message 10"
+$ mailbox add my-script/mailbox-1 "Message 11"
+$ mailbox add my-script/mailbox-1 "Message 12"
+$ mailbox add my-script/mailbox-2 "Message 1"
+$ mailbox add my-script/mailbox-2 "Message 2"
+$ mailbox add my-script/mailbox-2 "Message 3"
+$ mailbox add my-script/mailbox-2 "Message 4"
+$ mailbox add my-script/mailbox-2 "Message 5"
+$ mailbox add my-script/mailbox-2 "Message 6"
+$ mailbox add my-script/mailbox-2 "Message 7"
+$ mailbox add my-script/mailbox-2 "Message 8"
+
+$ mailbox view
+* This is a super long message that will need … [my-script] @ now
+* Message 1 [my-script/mailbox-1] @ now
+* Message 2 [my-script/mailbox-1] @ now
+* Message 3 [my-script/mailbox-1] @ now
+* Message 4 [my-script/mailbox-1] @ now (+8 older messages)
+* Message 1 [my-script/mailbox-2] @ now
+* Message 2 [my-script/mailbox-2] @ now
+* Message 3 [my-script/mailbox-2] @ now (+5 older messages)
+```
+
+To view the messages without summarization or truncation, pass the `--full-output`/`-f` flag.
+
+```sh
+$ mailbox view --full-output
+* This is a super long message that will need to be truncated [my-script] @ now
+* Message 1 [my-script/mailbox-1] @ now
+* Message 2 [my-script/mailbox-1] @ now
+* Message 3 [my-script/mailbox-1] @ now
+* Message 4 [my-script/mailbox-1] @ now
+* Message 5 [my-script/mailbox-1] @ now
+* Message 6 [my-script/mailbox-1] @ now
+* Message 7 [my-script/mailbox-1] @ now
+* Message 8 [my-script/mailbox-1] @ now
+* Message 9 [my-script/mailbox-1] @ now
+* Message 10 [my-script/mailbox-1] @ now
+* Message 11 [my-script/mailbox-1] @ now
+* Message 12 [my-script/mailbox-1] @ now
+* Message 1 [my-script/mailbox-2] @ now
+* Message 2 [my-script/mailbox-2] @ now
+* Message 3 [my-script/mailbox-2] @ now
+* Message 4 [my-script/mailbox-2] @ now
+* Message 5 [my-script/mailbox-2] @ now
+* Message 6 [my-script/mailbox-2] @ now
+* Message 7 [my-script/mailbox-2] @ now
+* Message 8 [my-script/mailbox-2] @ now
+```
