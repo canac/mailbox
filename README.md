@@ -2,6 +2,14 @@
 
 `mailbox` is a CLI tool that scripts and other commands can use to asynchronously deliver messages to the user. All messages are created locally by local commands and stored locally. It is most useful for use in scripts that run in the background on a schedule. For example, a daily online backup script could create messages for the status of the backup. Or a web scraper could create messages when it finds information of interest.
 
+## Installation
+
+Install `mailbox` via Homebrew.
+
+```sh
+brew install canac/tap/mailbox
+```
+
 ## Adding a message
 
 The first step is creating a new message.
