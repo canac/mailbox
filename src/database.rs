@@ -1,6 +1,7 @@
 use self::sea_query_driver_rusqlite::RusqliteValues;
 use crate::message::{Message, MessageIden, MessageState};
 use crate::message_filter::MessageFilter;
+use crate::new_message::NewMessage;
 use anyhow::{Context, Result};
 use rusqlite::Connection;
 use sea_query::{Alias, ColumnDef, Expr, Func, Order, Query, SqliteQueryBuilder, Table, Value};
@@ -94,12 +95,7 @@ impl Database {
     }
 
     // Add a new message to a particular mailbox, returning the new message
-    pub fn add_message(
-        &mut self,
-        mailbox: &str,
-        content: &str,
-        state: Option<MessageState>,
-    ) -> Result<Message> {
+    pub fn add_message(&mut self, message: NewMessage) -> Result<Message> {
         let (sql, values) = Query::insert()
             .into_table(MessageIden::Table)
             .columns([
@@ -108,9 +104,9 @@ impl Database {
                 MessageIden::State,
             ])
             .values(vec![
-                mailbox.into(),
-                content.into(),
-                state.unwrap_or(MessageState::Unread).into(),
+                message.mailbox.into(),
+                message.content.into(),
+                message.state.unwrap_or(MessageState::Unread).into(),
             ])?
             .returning_all()
             .build(SqliteQueryBuilder);
@@ -239,14 +235,33 @@ mod tests {
 
     use super::*;
 
+    fn add_message(
+        db: &mut Database,
+        mailbox: &str,
+        content: &str,
+        state: Option<MessageState>,
+    ) -> Result<()> {
+        db.add_message(NewMessage {
+            mailbox: mailbox.to_string(),
+            content: content.to_string(),
+            state,
+        })?;
+        Ok(())
+    }
+
     fn get_populated_db() -> Result<Database> {
         let mut db = Database::new(None)?;
-        db.add_message("unread", "unread1", Some(MessageState::Unread))?;
-        db.add_message("unread", "unread2", Some(MessageState::Unread))?;
-        db.add_message("read", "read1", Some(MessageState::Read))?;
-        db.add_message("read", "read2", Some(MessageState::Read))?;
-        db.add_message("read", "read3", Some(MessageState::Read))?;
-        db.add_message("archived", "archive1", Some(MessageState::Archived))?;
+        add_message(&mut db, "unread", "unread1", Some(MessageState::Unread))?;
+        add_message(&mut db, "unread", "unread2", Some(MessageState::Unread))?;
+        add_message(&mut db, "read", "read1", Some(MessageState::Read))?;
+        add_message(&mut db, "read", "read2", Some(MessageState::Read))?;
+        add_message(&mut db, "read", "read3", Some(MessageState::Read))?;
+        add_message(
+            &mut db,
+            "archived",
+            "archive1",
+            Some(MessageState::Archived),
+        )?;
         Ok(db)
     }
 
@@ -259,9 +274,9 @@ mod tests {
     #[test]
     fn test_add() -> Result<()> {
         let mut db = Database::new(None)?;
-        db.add_message("mailbox1", "message1", None)?;
-        db.add_message("mailbox2", "message2", None)?;
-        db.add_message("mailbox1", "message3", None)?;
+        add_message(&mut db, "mailbox1", "message1", None)?;
+        add_message(&mut db, "mailbox2", "message2", None)?;
+        add_message(&mut db, "mailbox1", "message3", None)?;
         assert_eq!(db.load_messages(&MessageFilter::new())?.len(), 3);
 
         let messages = db.load_messages(&MessageFilter::new().with_mailbox("mailbox1"))?;
@@ -313,12 +328,12 @@ mod tests {
     #[test]
     fn test_load_with_sub_mailbox_filters() -> Result<()> {
         let mut db = get_populated_db()?;
-        db.add_message("a", "message", None)?;
-        db.add_message("ab", "message", None)?;
-        db.add_message("a/b", "message", None)?;
-        db.add_message("a/c", "message", None)?;
-        db.add_message("a/b/c", "message", None)?;
-        db.add_message("a/c/b", "message", None)?;
+        add_message(&mut db, "a", "message", None)?;
+        add_message(&mut db, "ab", "message", None)?;
+        add_message(&mut db, "a/b", "message", None)?;
+        add_message(&mut db, "a/c", "message", None)?;
+        add_message(&mut db, "a/b/c", "message", None)?;
+        add_message(&mut db, "a/c/b", "message", None)?;
         assert_eq!(
             db.load_messages(&MessageFilter::new().with_mailbox("a"))?
                 .len(),

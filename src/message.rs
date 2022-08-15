@@ -2,9 +2,11 @@ use anyhow::anyhow;
 use clap::ValueEnum;
 use rusqlite::{Result, Row};
 use sea_query::{enum_def, Value};
+use serde::Deserialize;
 use std::fmt::{self, Display, Formatter};
 
-#[derive(Clone, Copy, ValueEnum)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, ValueEnum)]
+#[serde(rename_all = "lowercase")]
 pub enum MessageState {
     Unread,
     Read,

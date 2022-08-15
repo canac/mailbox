@@ -1,40 +1,27 @@
 mod cli;
 mod config;
 mod database;
+mod import;
 mod message;
 mod message_components;
 mod message_filter;
 mod message_formatter;
+mod new_message;
 mod truncate;
 
 use crate::cli::{AddMessageState, Cli, Command};
-use crate::config::{Config, Override};
+use crate::config::Config;
 use crate::database::Database;
+use crate::import::read_messages_stdin;
 use crate::message::MessageState;
 use anyhow::{Context, Result};
 use clap::Parser;
-use message::Message;
+use import::import_messages;
 use message_filter::MessageFilter;
 use message_formatter::{MessageFormatter, TimestampFormat};
-use serde::Deserialize;
+use new_message::NewMessage;
+use std::fs::create_dir_all;
 use std::io::stdin;
-use std::{fs::create_dir_all, vec};
-
-#[derive(Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ImportMessageState {
-    Unread,
-    Read,
-    Archived,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ImportedMessage {
-    mailbox: String,
-    content: String,
-    state: Option<ImportMessageState>,
-}
 
 // Load the database connection
 fn load_database() -> Result<Database> {
@@ -81,65 +68,6 @@ fn create_formatter(full_output: bool) -> Result<MessageFormatter> {
         .with_max_lines(size.map(|(_, height)| height)))
 }
 
-// Import messages into the database using the provided config to potentially
-// override their initial state
-fn import_messages(
-    db: &mut Database,
-    config: &Option<Config>,
-    messages: Vec<(String, String, Option<MessageState>)>,
-) -> Result<Vec<Message>> {
-    messages
-        .into_iter()
-        .filter_map(|(mailbox, content, state)| {
-            let overridden_state = config
-                .as_ref()
-                .and_then(|config| config.get_override(&mailbox));
-            let state = match overridden_state {
-                Some(Override::Unread) => Some(MessageState::Unread),
-                Some(Override::Read) => Some(MessageState::Read),
-                Some(Override::Archived) => Some(MessageState::Archived),
-                // Skip adding this message entirely
-                Some(Override::Ignored) => return None,
-                None => state,
-            };
-            Some(db.add_message(&mailbox, &content, state))
-        })
-        .collect()
-}
-
-// Import messages as lines of JSON from stdin
-fn read_messages_stdin() -> Vec<(String, String, Option<MessageState>)> {
-    stdin()
-        .lines()
-        .filter_map(|result| match result {
-            Ok(line) => {
-                if line.is_empty() {
-                    None
-                } else {
-                    let parse_result = serde_json::from_str::<ImportedMessage>(&line)
-                        .context("Error parsing line as JSON");
-                    match parse_result {
-                        Ok(message) => {
-                            let state = message.state.map(|state| match state {
-                                ImportMessageState::Unread => MessageState::Unread,
-                                ImportMessageState::Read => MessageState::Read,
-                                ImportMessageState::Archived => MessageState::Archived,
-                            });
-                            Some((message.mailbox, message.content, state))
-                        }
-                        Err(err) => {
-                            // Print an error but continue attempting to parse the other lines
-                            eprintln!("{:?}", err);
-                            None
-                        }
-                    }
-                }
-            }
-            Err(_) => None,
-        })
-        .collect::<Vec<_>>()
-}
-
 fn main() -> Result<()> {
     let mut db = load_database()?;
     let config = load_config()?;
@@ -157,13 +85,21 @@ fn main() -> Result<()> {
                 AddMessageState::Read => MessageState::Read,
                 AddMessageState::Archived => MessageState::Archived,
             };
-            let raw_messages = vec![(mailbox, content, Some(cli_state))];
+            let raw_messages = vec![NewMessage {
+                mailbox,
+                content,
+                state: Some(cli_state),
+            }];
             let messages = import_messages(&mut db, &config, raw_messages)?;
             print!("{}", formatter.format_messages(&messages))
         }
 
-        Command::Import => {
-            let messages = import_messages(&mut db, &config, read_messages_stdin())?;
+        Command::Import { format } => {
+            let messages = import_messages(
+                &mut db,
+                &config,
+                read_messages_stdin(stdin().lock(), format),
+            )?;
             print!("{}", formatter.format_messages(&messages))
         }
 

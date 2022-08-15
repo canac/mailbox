@@ -1,3 +1,5 @@
+use crate::message::MessageState;
+use crate::new_message::NewMessage;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf};
@@ -33,6 +35,21 @@ impl Config {
             .find_map(|index| self.overrides.get(&sections[0..=index].join("/")))
             .cloned()
     }
+
+    // Take an iterator of new messages and apply the overrides defined in
+    // this config, returning the new iterator
+    pub fn apply_override(&self, message: NewMessage) -> Option<NewMessage> {
+        let overridden_state = self.get_override(&message.mailbox);
+        let state = match overridden_state {
+            Some(Override::Unread) => Some(MessageState::Unread),
+            Some(Override::Read) => Some(MessageState::Read),
+            Some(Override::Archived) => Some(MessageState::Archived),
+            // Skip this message entirely
+            Some(Override::Ignored) => return None,
+            None => message.state,
+        };
+        Some(NewMessage { state, ..message })
+    }
 }
 
 #[cfg(test)]
@@ -41,6 +58,14 @@ mod tests {
 
     fn load_config(toml: &str) -> Result<Config> {
         Ok(toml::from_str(toml)?)
+    }
+
+    fn apply_override(config: &Config, mailbox: &str) -> Option<NewMessage> {
+        config.apply_override(NewMessage {
+            mailbox: mailbox.to_string(),
+            content: "Content".to_string(),
+            state: Some(MessageState::Unread),
+        })
     }
 
     #[test]
@@ -63,5 +88,30 @@ mod tests {
         assert_eq!(config.get_override("a"), Some(Override::Read));
         assert_eq!(config.get_override("b"), None);
         Ok(())
+    }
+
+    #[test]
+    fn test_apply_override() {
+        let config = Config {
+            overrides: HashMap::from([
+                ("a/b/c".to_string(), Override::Ignored),
+                ("a".to_string(), Override::Read),
+            ]),
+        };
+
+        assert!(apply_override(&config, "a/b/c/d").is_none());
+        assert!(apply_override(&config, "a/b/c").is_none());
+        assert_eq!(
+            apply_override(&config, "a/b").unwrap().state,
+            Some(MessageState::Read)
+        );
+        assert_eq!(
+            apply_override(&config, "a").unwrap().state,
+            Some(MessageState::Read)
+        );
+        assert_eq!(
+            apply_override(&config, "b").unwrap().state,
+            Some(MessageState::Unread)
+        );
     }
 }

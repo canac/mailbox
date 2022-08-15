@@ -171,10 +171,18 @@ $ mailbox add my-script/error/network "Couldn't connect to the internet" --state
 
 ## Mass importing messages
 
-Messages can also be added in bulk. Simply pipe a newline separated list of JSON message entries to `mailbox import`. The message entries have two required fields, `mailbox` and `content`, and an optional field `state` that can have the value `unread`, `read`, or `archived`.
+Messages can also be added in bulk. Simply pipe a newline separated list of tab separated message entries to `mailbox import`. The first field is the mailbox, the second field is the content, and the optional third field is the state and must have the value `unread`, `read`, or `archived`.
 
 ```sh
-$ printf '{"mailbox":"my-script","content":"Hello, world!"}\n{"mailbox":"my-script","content":"Hello, universe!","state":"read"}' | mailbox import
+$ printf 'my-script\tHello, world!\nmy-script\tHello, universe!\tread' | mailbox import
+* Hello, world! [my-script] @ now
+  Hello, universe! [my-script] @ now
+```
+
+Alternatively, you can pipe in a newline separated list of JSON message entries and pass the `--format=json` flag. The message entries have two required fields, `mailbox` and `content`, and an optional field `state` that can have the value `unread`, `read`, or `archived`.
+
+```sh
+$ printf '{"mailbox":"my-script","content":"Hello, world!"}\n{"mailbox":"my-script","content":"Hello, universe!","state":"read"}' | mailbox import --format=json
 * Hello, world! [my-script] @ now
   Hello, universe! [my-script] @ now
 ```

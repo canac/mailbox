@@ -8,6 +8,12 @@ pub enum AddMessageState {
 }
 
 #[derive(Clone, ValueEnum)]
+pub enum ImportMessageFormat {
+    Json,
+    Tsv,
+}
+
+#[derive(Clone, ValueEnum)]
 pub enum ViewMessageState {
     Unread,
     Read,
@@ -32,7 +38,11 @@ pub enum Command {
     },
 
     /// Add multiple messages
-    Import,
+    Import {
+        /// Import format
+        #[clap(value_enum, long, default_value = "tsv")]
+        format: ImportMessageFormat,
+    },
 
     /// View messages
     View {
