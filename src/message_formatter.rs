@@ -330,9 +330,7 @@ mod tests {
     #[test]
     fn test_format() {
         let messages = vec![make_message("a", "foo", 0)];
-        let formatter = MessageFormatter::new()
-            .with_color(false)
-            .with_timestamp_format(TimestampFormat::Utc);
+        let formatter = make_formatter();
         assert_eq!(
             formatter.format_messages(&messages).as_str(),
             "* foo [a] @ 2022-01-01 00:00:00 UTC\n"
@@ -342,9 +340,7 @@ mod tests {
     #[test]
     fn test_empty() {
         let messages = vec![];
-        let formatter = MessageFormatter::new()
-            .with_color(false)
-            .with_timestamp_format(TimestampFormat::Utc);
+        let formatter = make_formatter();
         assert_eq!(formatter.format_messages(&messages).as_str(), "");
     }
 
@@ -359,9 +355,7 @@ mod tests {
             make_message("foo", "f", 0),
             make_message("foo", "g", 1),
         ];
-        let formatter = MessageFormatter::new()
-            .with_color(false)
-            .with_timestamp_format(TimestampFormat::Utc);
+        let formatter = make_formatter();
         assert_eq!(
             formatter.format_messages(&messages).as_str(),
             "* b [foo] @ 2022-01-01 00:00:02 UTC
@@ -454,10 +448,7 @@ mod tests {
             make_message("f", "foo", 0),
             make_message("g", "foo", 1),
         ];
-        let formatter = MessageFormatter::new()
-            .with_color(false)
-            .with_timestamp_format(TimestampFormat::Utc)
-            .with_max_lines(Some(4));
+        let formatter = make_formatter().with_max_lines(Some(4));
         assert_eq!(
             formatter.format_messages(&messages).as_str(),
             "* foo [b] @ 2022-01-01 00:00:02 UTC
@@ -478,10 +469,7 @@ mod tests {
             make_message("foo", "f", 0),
             make_message("foo", "g", 1),
         ];
-        let formatter = MessageFormatter::new()
-            .with_color(false)
-            .with_timestamp_format(TimestampFormat::Utc)
-            .with_max_lines(Some(4));
+        let formatter = make_formatter().with_max_lines(Some(4));
         assert_eq!(
             formatter.format_messages(&messages).as_str(),
             "* b [foo] @ 2022-01-01 00:00:02 UTC
@@ -509,10 +497,7 @@ mod tests {
             make_message("bar6", "f", 0),
             make_message("bar7", "g", 0),
         ];
-        let formatter = MessageFormatter::new()
-            .with_color(false)
-            .with_timestamp_format(TimestampFormat::Utc)
-            .with_max_lines(Some(4));
+        let formatter = make_formatter().with_max_lines(Some(4));
         assert_eq!(
             formatter.format_messages(&messages).as_str(),
             "* b [foo] @ 2022-01-01 00:00:02 UTC (+6 older messages)
@@ -533,10 +518,7 @@ mod tests {
             make_message("bar", "f", 0),
             make_message("bar", "g", 1),
         ];
-        let formatter = MessageFormatter::new()
-            .with_color(false)
-            .with_timestamp_format(TimestampFormat::Utc)
-            .with_max_lines(Some(4));
+        let formatter = make_formatter().with_max_lines(Some(4));
         assert_eq!(
             formatter.format_messages(&messages).as_str(),
             "* b [foo] @ 2022-01-01 00:00:02 UTC
