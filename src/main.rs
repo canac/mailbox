@@ -58,7 +58,7 @@ fn create_formatter(full_output: bool) -> Result<MessageFormatter> {
         None
     };
     Ok(MessageFormatter::new()
-        .with_color(tty)
+        .with_color(colored::control::SHOULD_COLORIZE.should_colorize())
         .with_timestamp_format(if tty {
             TimestampFormat::Relative
         } else {
