@@ -129,6 +129,10 @@ format = '[($output )](bold yellow)'
 shell = ['bash', '--noprofile', '--norc']
 ```
 
+## Timestamp format
+
+The output format of timestamps can be controlled with the `--timestamp-format` flag. The possible values are `relative` (timestamps like `15 minutes ago`), `local` (timestamps in local time), and `utc` (timestamps in UTC time).
+
 ## Overrides
 
 `mailbox` gives you full control over how you get notified for messages, even when you don't have control over the command actually adding the messages. Suppose a non-crucial cron job adds a failure message when it can't connect to the network and you don't want to get spammed with messages every time you disconnect from WiFi. You can give `mailbox` a configuration file that overrides the state of messages or even ignores them outright based on their mailbox.

@@ -1,16 +1,10 @@
+use crate::cli::TimestampFormat;
 use crate::message::{Message, MessageState};
 use crate::message_components::MessageComponents;
 use crate::truncate::TruncatedLine;
 use chrono::{Local, TimeZone, Utc};
 use chrono_humanize::HumanTime;
 use std::collections::HashMap;
-
-pub enum TimestampFormat {
-    Relative,
-    Local,
-    #[allow(dead_code)] // only used in tests
-    Utc,
-}
 
 enum Word {
     Message,

@@ -9,7 +9,7 @@ mod message_formatter;
 mod new_message;
 mod truncate;
 
-use crate::cli::{AddMessageState, Cli, Command};
+use crate::cli::{AddMessageState, Cli, Command, TimestampFormat};
 use crate::config::Config;
 use crate::database::Database;
 use crate::import::read_messages_stdin;
@@ -18,7 +18,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use import::import_messages;
 use message_filter::MessageFilter;
-use message_formatter::{MessageFormatter, TimestampFormat};
+use message_formatter::MessageFormatter;
 use new_message::NewMessage;
 use std::fs::create_dir_all;
 use std::io::stdin;
@@ -41,11 +41,11 @@ fn load_config() -> Result<Option<Config>> {
 }
 
 // Create the message formatter
-fn create_formatter(full_output: bool) -> Result<MessageFormatter> {
+fn create_formatter(cli: &Cli) -> Result<MessageFormatter> {
     let tty = atty::is(atty::Stream::Stdout);
     const DEFAULT_WIDTH: usize = 80;
     const DEFAULT_HEIGHT: usize = 8;
-    let size = if !full_output && tty {
+    let size = if !cli.full_output && tty {
         match crossterm::terminal::size() {
             Ok((width, height)) => Some((
                 width as usize,
@@ -57,13 +57,16 @@ fn create_formatter(full_output: bool) -> Result<MessageFormatter> {
     } else {
         None
     };
-    Ok(MessageFormatter::new()
-        .with_color(colored::control::SHOULD_COLORIZE.should_colorize())
-        .with_timestamp_format(if tty {
+    let timestamp_format = cli.timestamp_format.unwrap_or({
+        if tty {
             TimestampFormat::Relative
         } else {
             TimestampFormat::Local
-        })
+        }
+    });
+    Ok(MessageFormatter::new()
+        .with_color(colored::control::SHOULD_COLORIZE.should_colorize())
+        .with_timestamp_format(timestamp_format)
         .with_max_columns(size.map(|(width, _)| width))
         .with_max_lines(size.map(|(_, height)| height)))
 }
@@ -72,7 +75,7 @@ fn main() -> Result<()> {
     let mut db = load_database()?;
     let config = load_config()?;
     let cli = Cli::parse();
-    let formatter = create_formatter(cli.full_output)?;
+    let formatter = create_formatter(&cli)?;
 
     match cli.command {
         Command::Add {

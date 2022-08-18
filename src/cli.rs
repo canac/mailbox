@@ -22,6 +22,13 @@ pub enum ViewMessageState {
     All,
 }
 
+#[derive(Clone, Copy, ValueEnum)]
+pub enum TimestampFormat {
+    Relative,
+    Local,
+    Utc,
+}
+
 #[derive(Parser)]
 pub enum Command {
     /// Add a message to a mailbox
@@ -94,4 +101,8 @@ pub struct Cli {
     /// Show all messages in output instead of summarizing
     #[clap(short = 'f', long, global = true)]
     pub full_output: bool,
+
+    /// Choose the timestamp format to use (defaults to relative with a TTY and UTC otherwise)
+    #[clap(value_enum, long, global = true)]
+    pub timestamp_format: Option<TimestampFormat>,
 }
