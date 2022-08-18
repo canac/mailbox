@@ -102,6 +102,14 @@ pub struct Cli {
     #[clap(short = 'f', long, global = true)]
     pub full_output: bool,
 
+    /// Enable color even when terminal is not a TTY
+    #[clap(long, global = true)]
+    pub color: bool,
+
+    /// Disable color even when terminal is a TTY
+    #[clap(long, global = true, conflicts_with = "color")]
+    pub no_color: bool,
+
     /// Choose the timestamp format to use (defaults to relative with a TTY and UTC otherwise)
     #[clap(value_enum, long, global = true)]
     pub timestamp_format: Option<TimestampFormat>,

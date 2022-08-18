@@ -129,6 +129,10 @@ format = '[($output )](bold yellow)'
 shell = ['bash', '--noprofile', '--norc']
 ```
 
+## Colors
+
+By default, colored output is only enabled if the terminal is a TTY. Colors can be forced on by setting the environment variable `CLICOLOR_FORCE=1` or passing the `--color` flag. Colors can be forced off by setting the environment variable `CLICOLOR=0` or `NO_COLOR=1` or passing the `--no-color` flag.
+
 ## Timestamp format
 
 The output format of timestamps can be controlled with the `--timestamp-format` flag. The possible values are `relative` (timestamps like `15 minutes ago`), `local` (timestamps in local time), and `utc` (timestamps in UTC time).

@@ -57,6 +57,13 @@ fn create_formatter(cli: &Cli) -> Result<MessageFormatter> {
     } else {
         None
     };
+    let colorize = if cli.color {
+        true
+    } else if cli.no_color {
+        false
+    } else {
+        colored::control::SHOULD_COLORIZE.should_colorize()
+    };
     let timestamp_format = cli.timestamp_format.unwrap_or({
         if tty {
             TimestampFormat::Relative
@@ -65,7 +72,7 @@ fn create_formatter(cli: &Cli) -> Result<MessageFormatter> {
         }
     });
     Ok(MessageFormatter::new()
-        .with_color(colored::control::SHOULD_COLORIZE.should_colorize())
+        .with_color(colorize)
         .with_timestamp_format(timestamp_format)
         .with_max_columns(size.map(|(width, _)| width))
         .with_max_lines(size.map(|(_, height)| height)))
@@ -76,6 +83,9 @@ fn main() -> Result<()> {
     let config = load_config()?;
     let cli = Cli::parse();
     let formatter = create_formatter(&cli)?;
+
+    // Let us control the coloring instead of colored
+    colored::control::set_override(true);
 
     match cli.command {
         Command::Add {
