@@ -2,11 +2,9 @@
 mod cli;
 
 use clap::CommandFactory;
-use std::{
-    fs::{create_dir_all, write},
-    io::Result,
-    path::{Path, PathBuf},
-};
+use std::fs::{create_dir_all, write};
+use std::io::Result;
+use std::path::{Path, PathBuf};
 
 fn main() {
     // Don't rebuild when the generated completions change
