@@ -23,8 +23,8 @@ pub struct Config {
 impl Config {
     // Load the configuration file from the provided path
     pub fn load(path: PathBuf) -> Result<Self> {
-        let contents = std::fs::read_to_string(path).context("Error reading config file")?;
-        toml::from_str(&contents).context("Error parsing config file")
+        let contents = std::fs::read_to_string(path).context("Failed to read config file")?;
+        toml::from_str(&contents).context("Failed to parse config file")
     }
 
     // Return the configured override for the given mailbox if there is one

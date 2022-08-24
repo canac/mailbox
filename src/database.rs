@@ -45,7 +45,7 @@ impl Database {
             Some(path) => Connection::open(path),
             None => Connection::open_in_memory(),
         }
-        .context("Error opening database")?;
+        .context("Failed to open database")?;
         let mut db = Database { connection };
         db.init()?;
         Ok(db)
@@ -90,7 +90,7 @@ impl Database {
             .build(SqliteQueryBuilder);
         self.connection
             .execute(sql.as_str(), [])
-            .context("Error creating database tables")?;
+            .context("Failed to create database tables")?;
         Ok(())
     }
 
@@ -118,7 +118,7 @@ impl Database {
                 RusqliteValues::from(values).as_params().as_slice(),
                 Message::from_row,
             )
-            .context("Error adding message")?;
+            .context("Failed to add message")?;
         Ok(message)
     }
 
@@ -138,7 +138,7 @@ impl Database {
                 Message::from_row,
             )?
             .collect::<Result<Vec<Message>, _>>()
-            .context("Error loading messages")?;
+            .context("Failed to load messages")?;
         Ok(messages)
     }
 
@@ -164,7 +164,7 @@ impl Database {
                 Message::from_row,
             )?
             .collect::<Result<Vec<Message>, _>>()
-            .context("Error changing message states")?;
+            .context("Failed to change message states")?;
         messages.sort_by_key(|message| message.timestamp);
         Ok(messages)
     }
@@ -184,7 +184,7 @@ impl Database {
                 Message::from_row,
             )?
             .collect::<Result<Vec<Message>, _>>()
-            .context("Error clearing messages")?;
+            .context("Failed to clear messages")?;
         messages.sort_by_key(|message| message.timestamp);
         Ok(messages)
     }
@@ -224,7 +224,7 @@ impl Database {
                 })
             })?
             .collect::<Result<Vec<MailboxSummary>, _>>()
-            .context("Error summarizing messages")?;
+            .context("Failed to summarize messages")?;
         Ok(summaries)
     }
 }

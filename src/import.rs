@@ -18,7 +18,7 @@ where
 
     match format {
         ImportMessageFormat::Json => lines
-            .map(|line| serde_json::from_str(&line).context("Error parsing line as JSON"))
+            .map(|line| serde_json::from_str(&line).context("Failed to parse line as JSON"))
             .collect::<Vec<Result<NewMessage>>>(),
         ImportMessageFormat::Tsv => {
             // ReaderBuilder needs a header row for the state column to be optional
@@ -32,7 +32,7 @@ where
                 .delimiter(b'\t')
                 .from_reader(tsv.as_bytes())
                 .deserialize()
-                .map(|result| result.context("Error parsing line as TSV"))
+                .map(|result| result.context("Failed to parse line as TSV"))
                 .collect::<Vec<Result<NewMessage>>>()
         }
     }
