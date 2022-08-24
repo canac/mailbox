@@ -103,12 +103,7 @@ pub enum Command {
 }
 
 #[derive(Parser)]
-#[clap(
-    name = env!("CARGO_PKG_NAME"),
-    about = env!("CARGO_PKG_DESCRIPTION"),
-    version = env!("CARGO_PKG_VERSION"),
-    author = env!("CARGO_PKG_AUTHORS")
-)]
+#[clap(about, version, author)]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Command,
