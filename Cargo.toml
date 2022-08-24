@@ -1,6 +1,6 @@
 [package]
 name = "mailbox"
-version = "0.3.3"
+version = "0.4.0"
 authors = ["Caleb Cox"]
 edition = "2021"
 description = "Message manager for local commands"
