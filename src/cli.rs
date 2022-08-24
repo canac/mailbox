@@ -30,6 +30,15 @@ pub enum TimestampFormat {
 }
 
 #[derive(Parser)]
+pub enum ConfigSubcommand {
+    /// Show the location of the config file
+    Locate,
+
+    /// Open the config file in $EDITOR
+    Edit,
+}
+
+#[derive(Parser)]
 pub enum Command {
     /// Add a message to a mailbox
     Add {
@@ -85,6 +94,12 @@ pub enum Command {
 
     /// Summarize all mailboxes
     Summarize,
+
+    /// Manage the configuration
+    Config {
+        #[clap(subcommand)]
+        subcommand: ConfigSubcommand,
+    },
 }
 
 #[derive(Parser)]

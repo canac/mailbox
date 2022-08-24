@@ -14,30 +14,57 @@ use crate::config::Config;
 use crate::database::Database;
 use crate::import::read_messages_stdin;
 use crate::message::MessageState;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
+use cli::ConfigSubcommand;
+use directories::ProjectDirs;
 use import::import_messages;
 use message_filter::MessageFilter;
 use message_formatter::MessageFormatter;
 use new_message::NewMessage;
 use std::fs::create_dir_all;
 use std::io::stdin;
+use std::path::PathBuf;
 
-// Load the database connection
+// Return the directories where this project stores its data
+fn get_project_dirs() -> Result<ProjectDirs> {
+    directories::ProjectDirs::from("com", "canac", "mailbox")
+        .context("Couldn't determine application directory")
+}
+
+// Load the database connection, creating the database file's parent directories if necessary
 fn load_database() -> Result<Database> {
-    let project_dirs = directories::ProjectDirs::from("com", "canac", "mailbox")
-        .context("Couldn't determine application directory")?;
+    let project_dirs = get_project_dirs()?;
     let data_dir = project_dirs.data_local_dir();
-    create_dir_all(data_dir).context("Couldn't create application directory")?;
+    create_dir_all(data_dir).context("Couldn't create data directory")?;
     Database::new(Some(data_dir.join("mailbox.db")))
+}
+
+// Return the path of the configuration file, creating its parent directories if necessary
+fn get_config_path() -> Result<PathBuf> {
+    let project_dirs = get_project_dirs()?;
+    let config_dir = project_dirs.config_dir();
+    create_dir_all(config_dir).context("Couldn't create config directory")?;
+    Ok(config_dir.join("config.toml"))
 }
 
 // Load the configuration file
 fn load_config() -> Result<Option<Config>> {
-    Ok(match std::env::var_os("MAILBOX_CONFIG") {
-        Some(config_path) => Some(Config::load(config_path.into())?),
-        None => None,
-    })
+    Config::load(get_config_path()?)
+}
+
+// Open the configuration file in $EDITOR
+fn edit_config() -> Result<()> {
+    match std::env::var_os("EDITOR") {
+        Some(editor) => {
+            std::process::Command::new(&editor)
+                .arg(get_config_path()?)
+                .status()
+                .with_context(|| format!("Failed to open editor: {}", editor.to_string_lossy()))?;
+            Ok(())
+        }
+        None => bail!("$EDITOR environment variable isn't set"),
+    }
 }
 
 // Create the message formatter
@@ -80,7 +107,6 @@ fn create_formatter(cli: &Cli) -> Result<MessageFormatter> {
 
 fn main() -> Result<()> {
     let mut db = load_database()?;
-    let config = load_config()?;
     let cli = Cli::parse();
     let formatter = create_formatter(&cli)?;
 
@@ -103,11 +129,13 @@ fn main() -> Result<()> {
                 content,
                 state: Some(cli_state),
             }];
+            let config = load_config()?;
             let messages = import_messages(&mut db, &config, raw_messages)?;
             print!("{}", formatter.format_messages(&messages))
         }
 
         Command::Import { format } => {
+            let config = load_config()?;
             let messages = import_messages(
                 &mut db,
                 &config,
@@ -172,6 +200,11 @@ fn main() -> Result<()> {
                 println!("{summary}");
             }
         }
+
+        Command::Config { subcommand } => match subcommand {
+            ConfigSubcommand::Locate => println!("{}", get_config_path()?.to_string_lossy()),
+            ConfigSubcommand::Edit => edit_config()?,
+        },
     };
 
     Ok(())

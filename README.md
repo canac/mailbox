@@ -139,9 +139,15 @@ The output format of timestamps can be controlled with the `--timestamp-format` 
 
 ## Overrides
 
-`mailbox` gives you full control over how you get notified for messages, even when you don't have control over the command actually adding the messages. Suppose a non-crucial cron job adds a failure message when it can't connect to the network and you don't want to get spammed with messages every time you disconnect from WiFi. You can give `mailbox` a configuration file that overrides the state of messages or even ignores them outright based on their mailbox.
+`mailbox` gives you full control over how you get notified for messages, even when you don't have control over the command actually adding the messages. Suppose a non-crucial cron job adds a failure message when it can't connect to the network and you don't want to get spammed with messages every time you disconnect from WiFi. You can create a configuration file that overrides the state of messages or even ignores them outright based on their mailbox.
 
-First, create a `config.toml` file somewhere on your system and format it something like this:
+First, make sure that the `$EDITOR` environment variable is set to your preferred editor. Then run `mailbox config edit` to open the configuration file in your configured editor. For example:
+
+```sh
+$ EDITOR=code mailbox config edit
+```
+
+Next, type something like this and save the file:
 
 ```toml
 [overrides]
@@ -149,12 +155,6 @@ First, create a `config.toml` file somewhere on your system and format it someth
 'my-script/log' = 'read'
 'my-script/update' = 'archived'
 'my-script/error/network' = 'ignored'
-```
-
-Next, set the `MAILBOX_CONFIG` environment variable to the location of that script. You probably want to add it to your shell profile to make sure that it is passed to the command that adds the message. The overrides are applied on write, so if a command doesn't have `MAILBOX_CONFIG` set or doesn't let `mailbox` inherit `MAILBOX_CONFIG` from it's environment, then `mailbox` won't know about those overrides and won't be able to apply them.
-
-```bash
-echo "export MAILBOX_CONFIG=~/config.toml" >> ~/.bash_profile
 ```
 
 Now the state of messages that my-script adds will be overridden.
@@ -176,6 +176,8 @@ $ mailbox add my-script/update "New my-script version available!" --state=unread
 $ mailbox add my-script/error/network "Couldn't connect to the internet" --state=read
 
 ```
+
+You can also run `mailbox config locate` to print the OS-dependent path of the configuration file.
 
 ## Mass importing messages
 

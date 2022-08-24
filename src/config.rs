@@ -2,7 +2,7 @@ use crate::message::MessageState;
 use crate::new_message::NewMessage;
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, io::ErrorKind, path::PathBuf};
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -22,9 +22,14 @@ pub struct Config {
 
 impl Config {
     // Load the configuration file from the provided path
-    pub fn load(path: PathBuf) -> Result<Self> {
-        let contents = std::fs::read_to_string(path).context("Failed to read config file")?;
-        toml::from_str(&contents).context("Failed to parse config file")
+    pub fn load(path: PathBuf) -> Result<Option<Self>> {
+        match std::fs::read_to_string(&path) {
+            Ok(contents) => Ok(Some(toml::from_str(&contents).with_context(|| {
+                format!("Failed to parse config file {}", path.to_string_lossy())
+            })?)),
+            Err(err) if err.kind() == ErrorKind::NotFound => Ok(None),
+            Err(err) => Err(err).context("Failed to read config file"),
+        }
     }
 
     // Return the configured override for the given mailbox if there is one
