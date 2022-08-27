@@ -12,8 +12,8 @@ where
     Stdin: std::io::BufRead,
 {
     let lines = stdin.lines().filter_map(|result| match result {
-        Ok(line) => Some(line),
-        Err(_) => None,
+        Ok(line) if !line.is_empty() => Some(line),
+        _ => None,
     });
 
     match format {
