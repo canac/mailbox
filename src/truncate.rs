@@ -32,7 +32,16 @@ impl TruncatedLine {
         let (truncated, width) = truncate_string(new_chars.into(), self.remaining_columns);
         self.remaining_columns -= width;
         let colorize = colorize.unwrap_or(no_color);
-        self.current_line = format!("{}{}", self.current_line, colorize(truncated));
+        self.current_line = format!(
+            "{}{}",
+            self.current_line,
+            if truncated.is_empty() {
+                // Don't add color codes to empty strings
+                no_color("".to_string())
+            } else {
+                colorize(truncated)
+            }
+        );
     }
 }
 
@@ -136,6 +145,19 @@ mod tests {
         line.append("hello ", None);
         line.append("world", Some(|str| str.red()));
         assert_eq!(line.to_string(), "hello \u{1b}[31mworld\u{1b}[0m");
+
+        colored::control::unset_override();
+    }
+
+    #[test]
+    fn test_colored_empty_string() {
+        // Temporarily use colors, even in CI
+        colored::control::set_override(true);
+
+        let mut line = TruncatedLine::new(5);
+        line.append("hello ", None);
+        line.append("world", Some(|str| str.red()));
+        assert_eq!(line.to_string(), "hell…");
 
         colored::control::unset_override();
     }
