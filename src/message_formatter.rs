@@ -432,6 +432,17 @@ mod tests {
     }
 
     #[test]
+    fn test_truncate_double_width() {
+        let formatter = make_formatter().with_max_columns(Some(43));
+        assert_eq!(
+            formatter
+                .format_message(&make_message("⭐⭐⭐", "⭐⭐⭐", 0), None)
+                .as_str(),
+            "* ⭐⭐⭐ [⭐⭐⭐] @ 2022-01-01 00:00:00 UTC"
+        );
+    }
+
+    #[test]
     fn test_summarize_many_mailboxes() {
         let messages = vec![
             make_message("a", "foo", 0),
