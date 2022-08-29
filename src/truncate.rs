@@ -1,53 +1,82 @@
 use colored::{ColoredString, Colorize};
-use unicode_width::UnicodeWidthChar;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+
+type ApplyColor = fn(String) -> ColoredString;
+
+fn no_color(str: String) -> ColoredString {
+    str.normal()
+}
 
 // Represents a line of characters with a max length that can be built up over time
 pub struct TruncatedLine {
     // The number of available columns in the line
-    remaining_columns: usize,
+    available_columns: usize,
 
-    // The current string contents of the line
-    current_line: String,
+    // The sections that make up the truncated line
+    sections: Vec<(String, ApplyColor)>,
 }
 
 impl TruncatedLine {
     // Create a new instance
     pub fn new(max_columns: usize) -> Self {
         TruncatedLine {
-            remaining_columns: max_columns,
-            current_line: String::new(),
+            available_columns: max_columns,
+            sections: Default::default(),
         }
     }
 
     // Add more characters to the line, enforcing the maximum line length
-    pub fn append(
-        &mut self,
-        new_chars: impl Into<String>,
-        colorize: Option<fn(String) -> ColoredString>,
-    ) {
-        fn no_color(str: String) -> ColoredString {
-            str.normal()
+    pub fn append(&mut self, new_chars: impl Into<String>, colorize: Option<ApplyColor>) {
+        let new_chars: String = new_chars.into();
+        if !new_chars.is_empty() {
+            self.sections
+                .push((new_chars, colorize.unwrap_or(no_color)));
+        }
+    }
+
+    // Generate the string representation of this line
+    fn generate(&self) -> String {
+        let mut line = String::new();
+
+        let mut remaining_columns = self.available_columns;
+        for (index, (new_chars, colorize)) in self.sections.iter().enumerate() {
+            // If this section exactly fits in the remaining columns, but there
+            // are still other sections remaining, then force truncation
+            let force_truncate =
+                remaining_columns == new_chars.width() && index != self.sections.len() - 1;
+            // Force truncation if necessary by adding an extra character that
+            // will be truncated off
+            let (truncated, width) = truncate_string(
+                format!("{new_chars}{}", if force_truncate { " " } else { "" }),
+                remaining_columns,
+            );
+            remaining_columns -= width;
+            line = format!(
+                "{}{}",
+                line,
+                if truncated.is_empty() {
+                    // Don't add color codes to empty strings
+                    no_color("".to_string())
+                } else {
+                    colorize(truncated)
+                }
+            );
+
+            // remaining_columns might be non-zero if new_chars contained
+            // double-width characters, so abort since we don't want to add
+            // anything else
+            if force_truncate {
+                return line;
+            }
         }
 
-        let (truncated, width) = truncate_string(new_chars.into(), self.remaining_columns);
-        self.remaining_columns -= width;
-        let colorize = colorize.unwrap_or(no_color);
-        self.current_line = format!(
-            "{}{}",
-            self.current_line,
-            if truncated.is_empty() {
-                // Don't add color codes to empty strings
-                no_color("".to_string())
-            } else {
-                colorize(truncated)
-            }
-        );
+        line
     }
 }
 
 impl ToString for TruncatedLine {
     fn to_string(&self) -> String {
-        self.current_line.clone()
+        self.generate()
     }
 }
 
@@ -125,7 +154,6 @@ mod tests {
         let mut line = TruncatedLine::new(20);
         line.append("hello", None);
         assert_eq!(line.to_string(), "hello");
-        assert_eq!(line.remaining_columns, 15);
     }
 
     #[test]
@@ -134,6 +162,31 @@ mod tests {
         line.append("hello ", None);
         line.append("world", None);
         assert_eq!(line.to_string(), "hello wo…");
+    }
+
+    #[test]
+    fn test_multiple_append_trailing_empty() {
+        let mut line = TruncatedLine::new(11);
+        line.append("hello ", None);
+        line.append("world", None);
+        line.append("", None);
+        assert_eq!(line.to_string(), "hello world");
+    }
+
+    #[test]
+    fn test_multiple_append_first_fills() {
+        let mut line = TruncatedLine::new(6);
+        line.append("hello ", None);
+        line.append("world", None);
+        assert_eq!(line.to_string(), "hello…");
+    }
+
+    #[test]
+    fn test_multiple_append_first_fills_double_width() {
+        let mut line = TruncatedLine::new(6);
+        line.append("⭐⭐⭐", None);
+        line.append("world", None);
+        assert_eq!(line.to_string(), "⭐⭐…");
     }
 
     #[test]
