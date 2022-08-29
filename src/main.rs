@@ -106,6 +106,9 @@ fn create_formatter(cli: &Cli) -> Result<MessageFormatter> {
 }
 
 fn main() -> Result<()> {
+    // Fix broken pipe panics
+    sigpipe::reset();
+
     let mut db = load_database()?;
     let cli = Cli::parse();
     let formatter = create_formatter(&cli)?;
