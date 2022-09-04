@@ -18,21 +18,30 @@ where
 
     match format {
         ImportMessageFormat::Json => lines
-            .map(|line| serde_json::from_str(&line).context("Failed to parse line as JSON"))
+            .map(|line| {
+                serde_json::from_str(&line)
+                    .with_context(|| format!("Failed to parse line as JSON:\n{line}"))
+            })
             .collect::<Vec<Result<NewMessage>>>(),
         ImportMessageFormat::Tsv => {
             // ReaderBuilder needs a header row for the state column to be optional
-            let tsv = format!(
-                "mailbox\tcontent\tstate\n{}",
-                lines.collect::<Vec<_>>().join("\n")
-            );
+            let lines = lines.collect::<Vec<_>>();
+            let tsv = format!("mailbox\tcontent\tstate\n{}", lines.join("\n"));
             ReaderBuilder::new()
                 .has_headers(true)
                 .flexible(true)
                 .delimiter(b'\t')
                 .from_reader(tsv.as_bytes())
                 .deserialize()
-                .map(|result| result.context("Failed to parse line as TSV"))
+                .enumerate()
+                .map(|(index, result)| {
+                    result.with_context(|| {
+                        format!(
+                            "Failed to parse line as TSV:\n{}",
+                            lines.get(index).unwrap_or(&String::new())
+                        )
+                    })
+                })
                 .collect::<Vec<Result<NewMessage>>>()
         }
     }
