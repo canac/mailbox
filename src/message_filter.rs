@@ -19,13 +19,13 @@ impl MessageFilter {
     }
 
     // Add a mailbox filter
-    pub fn with_mailbox<M: Into<String>>(mut self, mailbox: M) -> Self {
+    pub fn with_mailbox(mut self, mailbox: impl Into<String>) -> Self {
         self.mailbox = Some(mailbox.into());
         self
     }
 
     // Add a mailbox filter if the option is Some
-    pub fn with_mailbox_option<M: Into<String>>(self, mailbox: Option<M>) -> Self {
+    pub fn with_mailbox_option(self, mailbox: Option<impl Into<String>>) -> Self {
         match mailbox {
             Some(mailbox) => self.with_mailbox(mailbox),
             None => self,
