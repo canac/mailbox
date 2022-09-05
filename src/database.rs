@@ -2,7 +2,7 @@ use self::sea_query_driver_rusqlite::RusqliteValues;
 use crate::message::{Message, MessageIden, MessageState};
 use crate::message_filter::MessageFilter;
 use crate::new_message::NewMessage;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use rusqlite::Connection;
 use sea_query::{Alias, ColumnDef, Expr, Func, Order, Query, SqliteQueryBuilder, Table, Value};
 
@@ -96,6 +96,8 @@ impl Database {
 
     // Add a new message to a particular mailbox, returning the new message
     pub fn add_message(&mut self, message: NewMessage) -> Result<Message> {
+        Self::validate_message(&message)?;
+
         let (sql, values) = Query::insert()
             .into_table(MessageIden::Table)
             .columns([
@@ -227,6 +229,33 @@ impl Database {
             .context("Failed to summarize messages")?;
         Ok(summaries)
     }
+
+    // Return an error if the new message invalid
+    fn validate_message(message: &NewMessage) -> Result<()> {
+        if message.content.is_empty() {
+            bail!("content must not be empty");
+        }
+        if message.mailbox.is_empty() {
+            bail!("mailbox must not be empty");
+        }
+        if message.mailbox.starts_with('/') {
+            bail!("mailbox must not start with /");
+        }
+        if message.mailbox.ends_with('/') {
+            bail!("mailbox must not end with /");
+        }
+        if message.mailbox.contains("//") {
+            bail!("mailbox must not contain //");
+        }
+        if message.mailbox.contains('*') {
+            bail!("mailbox must not contain *");
+        }
+        if message.mailbox.contains('?') {
+            bail!("mailbox must not contain ?");
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -291,6 +320,19 @@ mod tests {
         assert_eq!(messages[0].content, "message2");
         assert_eq!(messages.len(), 1);
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_add_invalid() -> Result<()> {
+        let mut db = Database::new(None)?;
+        assert!(add_message(&mut db, "mailbox", "", None).is_err());
+        assert!(add_message(&mut db, "", "message", None).is_err());
+        assert!(add_message(&mut db, "mailbox/", "message", None).is_err());
+        assert!(add_message(&mut db, "/mailbox", "message", None).is_err());
+        assert!(add_message(&mut db, "parent//child", "message", None).is_err());
+        assert!(add_message(&mut db, "parent/*", "message", None).is_err());
+        assert!(add_message(&mut db, "parent/?", "message", None).is_err());
         Ok(())
     }
 
