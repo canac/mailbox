@@ -5,7 +5,7 @@ use sea_query::{enum_def, Value};
 use serde::Deserialize;
 use std::fmt::{self, Display, Formatter};
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, ValueEnum)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, ValueEnum)]
 #[serde(rename_all = "lowercase")]
 pub enum MessageState {
     Unread,

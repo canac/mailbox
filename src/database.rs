@@ -4,7 +4,7 @@ use crate::message_filter::MessageFilter;
 use crate::new_message::NewMessage;
 use anyhow::{bail, Context, Result};
 use rusqlite::Connection;
-use sea_query::{ColumnDef, Expr, Order, Query, SqliteQueryBuilder, Table, Value};
+use sea_query::{Alias, ColumnDef, Expr, Func, Order, Query, SqliteQueryBuilder, Table, Value};
 
 sea_query::sea_query_driver_rusqlite!();
 
@@ -100,12 +100,12 @@ impl Database {
     }
 
     // Load messages, applying the provided filters
-    pub fn load_messages(&mut self, filter: &MessageFilter) -> Result<Vec<Message>> {
+    pub fn load_messages(&mut self, filter: MessageFilter) -> Result<Vec<Message>> {
         let (sql, values) = Query::select()
             .expr(Expr::asterisk())
             .from(MessageIden::Table)
             .cond_where(filter.get_where())
-            .order_by(MessageIden::Timestamp, Order::Asc)
+            .order_by(MessageIden::Timestamp, Order::Desc)
             .build(SqliteQueryBuilder);
 
         let mut statement = self.connection.prepare(sql.as_str())?;
@@ -124,7 +124,7 @@ impl Database {
     // Only load messages in one of the specified states if states_filter is provided
     pub fn change_state(
         &mut self,
-        filter: &MessageFilter,
+        filter: MessageFilter,
         new_state: MessageState,
     ) -> Result<Vec<Message>> {
         let (sql, values) = Query::update()
@@ -142,12 +142,13 @@ impl Database {
             )?
             .collect::<Result<Vec<Message>, _>>()
             .context("Failed to change message states")?;
-        messages.sort_by_key(|message| message.timestamp);
+        // Sort the messages manually since SQLite doesn't support sorting RETURNING results
+        messages.sort_by_key(|message| -message.timestamp.timestamp());
         Ok(messages)
     }
 
     // Delete messages, applying the provided filters
-    pub fn delete_messages(&mut self, filter: &MessageFilter) -> Result<Vec<Message>> {
+    pub fn delete_messages(&mut self, filter: MessageFilter) -> Result<Vec<Message>> {
         let (sql, values) = Query::delete()
             .from_table(MessageIden::Table)
             .returning_all()
@@ -162,8 +163,31 @@ impl Database {
             )?
             .collect::<Result<Vec<Message>, _>>()
             .context("Failed to clear messages")?;
-        messages.sort_by_key(|message| message.timestamp);
+        // Sort the messages manually since SQLite doesn't support sorting RETURNING results
+        messages.sort_by_key(|message| -message.timestamp.timestamp());
         Ok(messages)
+    }
+
+    // Load the names of all used mailboxes
+    pub fn load_mailboxes(&mut self, filter: MessageFilter) -> Result<Vec<(String, usize)>> {
+        let (sql, values) = Query::select()
+            .from(MessageIden::Table)
+            .column(MessageIden::Mailbox)
+            .cond_where(filter.get_where())
+            .expr_as(Func::count(Expr::col(MessageIden::Id)), Alias::new("count"))
+            .group_by_col(MessageIden::Mailbox)
+            .order_by(MessageIden::Mailbox, Order::Asc)
+            .distinct()
+            .build(SqliteQueryBuilder);
+        let mut statement = self.connection.prepare(sql.as_str())?;
+        let mailboxes = statement
+            .query_map(RusqliteValues::from(values).as_params().as_slice(), |row| {
+                let count: i64 = row.get(1)?;
+                Ok((row.get(0)?, count as usize))
+            })?
+            .collect::<Result<_, _>>()
+            .context("Failed to load mailboxes")?;
+        Ok(mailboxes)
     }
 
     // Return an error if the new message invalid
@@ -242,16 +266,16 @@ mod tests {
         add_message(&mut db, "mailbox1", "message1", None)?;
         add_message(&mut db, "mailbox2", "message2", None)?;
         add_message(&mut db, "mailbox1", "message3", None)?;
-        assert_eq!(db.load_messages(&MessageFilter::new())?.len(), 3);
+        assert_eq!(db.load_messages(MessageFilter::new())?.len(), 3);
 
-        let messages = db.load_messages(&MessageFilter::new().with_mailbox("mailbox1"))?;
+        let messages = db.load_messages(MessageFilter::new().with_mailbox("mailbox1"))?;
         assert_eq!(messages[0].mailbox, "mailbox1");
         assert_eq!(messages[0].content, "message1");
         assert_eq!(messages[1].mailbox, "mailbox1");
         assert_eq!(messages[1].content, "message3");
         assert_eq!(messages.len(), 2);
 
-        let messages = db.load_messages(&MessageFilter::new().with_mailbox("mailbox2"))?;
+        let messages = db.load_messages(MessageFilter::new().with_mailbox("mailbox2"))?;
         assert_eq!(messages[0].mailbox, "mailbox2");
         assert_eq!(messages[0].content, "message2");
         assert_eq!(messages.len(), 1);
@@ -275,7 +299,7 @@ mod tests {
     #[test]
     fn test_load() -> Result<()> {
         let mut db = get_populated_db()?;
-        assert_eq!(db.load_messages(&MessageFilter::new())?.len(), 6);
+        assert_eq!(db.load_messages(MessageFilter::new())?.len(), 6);
         Ok(())
     }
 
@@ -283,7 +307,7 @@ mod tests {
     fn test_load_with_mailbox_filter() -> Result<()> {
         let mut db = get_populated_db()?;
         assert_eq!(
-            db.load_messages(&MessageFilter::new().with_mailbox("unread"))?
+            db.load_messages(MessageFilter::new().with_mailbox("unread"))?
                 .len(),
             2
         );
@@ -295,7 +319,7 @@ mod tests {
         let mut db = get_populated_db()?;
         assert_eq!(
             db.load_messages(
-                &MessageFilter::new().with_states(vec![MessageState::Read, MessageState::Archived])
+                MessageFilter::new().with_states(vec![MessageState::Read, MessageState::Archived])
             )?
             .len(),
             4
@@ -313,17 +337,17 @@ mod tests {
         add_message(&mut db, "a/b/c", "message", None)?;
         add_message(&mut db, "a/c/b", "message", None)?;
         assert_eq!(
-            db.load_messages(&MessageFilter::new().with_mailbox("a"))?
+            db.load_messages(MessageFilter::new().with_mailbox("a"))?
                 .len(),
             5
         );
         assert_eq!(
-            db.load_messages(&MessageFilter::new().with_mailbox("a/b"))?
+            db.load_messages(MessageFilter::new().with_mailbox("a/b"))?
                 .len(),
             2
         );
         assert_eq!(
-            db.load_messages(&MessageFilter::new().with_mailbox("a/b/c"))?
+            db.load_messages(MessageFilter::new().with_mailbox("a/b/c"))?
                 .len(),
             1
         );
@@ -334,11 +358,11 @@ mod tests {
     fn test_read() -> Result<()> {
         let mut db = get_populated_db()?;
         db.change_state(
-            &MessageFilter::new().with_states(vec![MessageState::Unread]),
+            MessageFilter::new().with_states(vec![MessageState::Unread]),
             MessageState::Read,
         )?;
         assert_eq!(
-            db.load_messages(&MessageFilter::new().with_states(vec![MessageState::Read]))?
+            db.load_messages(MessageFilter::new().with_states(vec![MessageState::Read]))?
                 .len(),
             5
         );
@@ -349,11 +373,11 @@ mod tests {
     fn test_archive() -> Result<()> {
         let mut db = get_populated_db()?;
         db.change_state(
-            &MessageFilter::new().with_states(vec![MessageState::Unread, MessageState::Read]),
+            MessageFilter::new().with_states(vec![MessageState::Unread, MessageState::Read]),
             MessageState::Archived,
         )?;
         assert_eq!(
-            db.load_messages(&MessageFilter::new().with_states(vec![MessageState::Archived]))?
+            db.load_messages(MessageFilter::new().with_states(vec![MessageState::Archived]))?
                 .len(),
             6
         );
@@ -364,9 +388,9 @@ mod tests {
     fn test_delete() -> Result<()> {
         let mut db = get_populated_db()?;
         db.delete_messages(
-            &MessageFilter::new().with_states(vec![MessageState::Unread, MessageState::Read]),
+            MessageFilter::new().with_states(vec![MessageState::Unread, MessageState::Read]),
         )?;
-        assert_eq!(db.load_messages(&MessageFilter::new())?.len(), 1);
+        assert_eq!(db.load_messages(MessageFilter::new())?.len(), 1);
         Ok(())
     }
 }

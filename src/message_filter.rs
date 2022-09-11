@@ -3,6 +3,7 @@ use sea_query::{Cond, Condition, Expr};
 
 #[derive(Clone)]
 pub struct MessageFilter {
+    ids: Option<Vec<i32>>,
     mailbox: Option<String>,
     states: Option<Vec<MessageState>>,
 }
@@ -15,6 +16,7 @@ impl MessageFilter {
         MessageFilter {
             mailbox: None,
             states: None,
+            ids: None,
         }
     }
 
@@ -38,10 +40,17 @@ impl MessageFilter {
         self
     }
 
+    // Add IDs to a filter
+    pub fn with_ids(mut self, ids: impl Iterator<Item = i32>) -> Self {
+        self.ids = Some(ids.collect());
+        self
+    }
+
     // Generate a sea-query where expression message filter
-    pub fn get_where(&self) -> Condition {
+    pub fn get_where(self) -> Condition {
         Cond::all()
-            .add_option(self.mailbox.as_ref().map(|mailbox| {
+            .add_option(self.ids.map(|ids| Expr::col(MessageIden::Id).is_in(ids)))
+            .add_option(self.mailbox.map(|mailbox| {
                 Cond::any()
                     .add(Expr::col(MessageIden::Mailbox).eq(mailbox.clone()))
                     .add(Expr::cust_with_values(
@@ -49,7 +58,7 @@ impl MessageFilter {
                         vec![format!("{mailbox}/*")],
                     ))
             }))
-            .add_option(self.states.as_ref().map(|states| {
+            .add_option(self.states.map(|states| {
                 Expr::col(MessageIden::State).is_in(
                     states
                         .iter()

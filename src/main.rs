@@ -8,6 +8,7 @@ mod message_filter;
 mod message_formatter;
 mod new_message;
 mod truncate;
+mod tui;
 
 use crate::cli::{AddMessageState, Cli, Command, TimestampFormat};
 use crate::config::Config;
@@ -162,7 +163,7 @@ fn main() -> Result<()> {
                 ],
             };
             let messages = db.load_messages(
-                &MessageFilter::new()
+                MessageFilter::new()
                     .with_mailbox_option(mailbox)
                     .with_states(states),
             )?;
@@ -171,7 +172,7 @@ fn main() -> Result<()> {
 
         Command::Read { mailbox } => {
             let messages = db.change_state(
-                &MessageFilter::new()
+                MessageFilter::new()
                     .with_mailbox_option(mailbox)
                     .with_states(vec![MessageState::Unread]),
                 MessageState::Read,
@@ -181,7 +182,7 @@ fn main() -> Result<()> {
 
         Command::Archive { mailbox } => {
             let messages = db.change_state(
-                &MessageFilter::new()
+                MessageFilter::new()
                     .with_mailbox_option(mailbox)
                     .with_states(vec![MessageState::Unread, MessageState::Read]),
                 MessageState::Archived,
@@ -191,12 +192,14 @@ fn main() -> Result<()> {
 
         Command::Clear { mailbox } => {
             let messages = db.delete_messages(
-                &MessageFilter::new()
+                MessageFilter::new()
                     .with_mailbox_option(mailbox)
                     .with_states(vec![MessageState::Archived]),
             )?;
             print!("{}", formatter.format_messages(&messages))
         }
+
+        Command::Tui => crate::tui::run(db).unwrap(),
 
         Command::Config { subcommand } => match subcommand {
             ConfigSubcommand::Locate => println!("{}", get_config_path()?.to_string_lossy()),

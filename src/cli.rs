@@ -92,6 +92,9 @@ pub enum Command {
         mailbox: Option<String>,
     },
 
+    /// Open an interactive terminal UI to interact with messages
+    Tui,
+
     /// Manage the configuration
     Config {
         #[clap(subcommand)]

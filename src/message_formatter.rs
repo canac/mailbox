@@ -32,7 +32,7 @@ impl<'messages> Mailbox<'messages> {
     fn new(name: &'messages String, messages: Vec<&'messages Message>) -> Self {
         let mut messages = messages;
 
-        // Sort the messages with newest ones first, the alphabetically by mailbox name
+        // Sort the messages with newest ones first, then alphabetically by mailbox name
         messages.sort_by_key(|message| (-message.timestamp.timestamp(), &message.mailbox));
         let timestamp = messages
             .first()

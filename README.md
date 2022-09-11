@@ -113,6 +113,48 @@ $ mailbox view --state=all
 
 A typical workflow when using mailbox is to first check for any new messages by running `mailbox view`. Then, if there aren't any messages that you want to continue to be reminded about, run `mailbox read`. Alternatively, when you don't want to see any of those messages again, run `mailbox archive`. Periodically, optionally run `mailbox clear` to prevent archived messages from building up.
 
+## TUI
+
+You can also view the mailbox messages in an interactive terminal UI by running `mailbox tui`.
+
+The following keyboard commands allow navigating and performing operations on the messages.
+
+### Global commands
+
+- `1`: focus the mailboxes pane
+- `2`: focus the messages pane
+- `Ctrl+u`: toggle whether unread messages are displayed
+- `Ctrl+r`: toggle whether read messages are displayed
+- `Ctrl+a`: toggle whether archived messages are displayed
+- `q`: exit the TUI
+
+### Mailbox pane commands
+
+- `j` or `down`: move the cursor down one mailbox
+- `k` or `up`: move the cursor up one mailbox
+- `Ctrl+j` or `Ctrl+down`: move the cursor to the next mailbox in the tree at the same depth or shallower, skipping over deeper mailboxes
+- `Ctrl+k` or `Ctrl+up`: move the cursor to the previous mailbox in the tree at the same depth or shallower, skipping over deeper mailboxes
+- `Escape`: remove the cursor
+
+### Message pane commands
+
+- `j` or `down`: move the cursor down one message
+- `k` or `up`: move the cursor up one message
+- `Shift+j`: move the cursor to the first message
+- `Shift+k`: move the cursor to the last message
+- `Ctrl+j` or `Ctrl+down`: move the cursor down ten messages
+- `Ctrl+k` or `Ctrl+up`: move the cursor up ten messages
+- `Escape`: remove the cursor
+- `Space`: toggle whether the message under the cursor is selected
+- `g`: select all messages
+- `Shift+g`: deselect all messages
+- `Ctrl+s`: toggle whether moving the cursor also selects messages
+- `Ctrl+d`: toggle whether moving the cursor also deselects messages
+- `u`: mark the selected messages or the message under the cursor as unread
+- `r`: mark the selected messages or the message under the cursor as read
+- `a`: mark the selected messages or the message under the cursor as archived
+- `Ctrl+x`: delete the selected messages or the message under the cursor
+
 ## Starship notifications
 
 You'll probably want to get notifications for your unread messages somehow. A custom terminal prompt via [Starship](https://starship.rs) is a great way to do that! Add this to `~/.config/starship.toml` enable mailbox notifications:
