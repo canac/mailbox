@@ -4,34 +4,9 @@ use crate::message_filter::MessageFilter;
 use crate::new_message::NewMessage;
 use anyhow::{bail, Context, Result};
 use rusqlite::Connection;
-use sea_query::{Alias, ColumnDef, Expr, Func, Order, Query, SqliteQueryBuilder, Table, Value};
+use sea_query::{ColumnDef, Expr, Order, Query, SqliteQueryBuilder, Table, Value};
 
 sea_query::sea_query_driver_rusqlite!();
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct MailboxSummary {
-    pub mailbox: String,
-    pub count: i64,
-    pub unread: i64,
-    pub read: i64,
-    pub archived: i64,
-}
-
-impl std::fmt::Display for MailboxSummary {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use colored::*;
-
-        write!(
-            f,
-            "{}: {} ({}/{}/{})",
-            self.mailbox.bold().green(),
-            self.count,
-            self.unread.to_string().bold().red(),
-            self.read,
-            self.archived
-        )
-    }
-}
 
 pub struct Database {
     connection: Connection,
@@ -189,45 +164,6 @@ impl Database {
             .context("Failed to clear messages")?;
         messages.sort_by_key(|message| message.timestamp);
         Ok(messages)
-    }
-
-    // Count the number of messages in each mailbox
-    pub fn summarize_messages(&mut self) -> Result<Vec<MailboxSummary>> {
-        let (sql, values) = Query::select()
-            .from(MessageIden::Table)
-            .column(MessageIden::Mailbox)
-            .expr_as(Func::count(Expr::col(MessageIden::Id)), Alias::new("count"))
-            .expr_as(
-                Expr::cust("COUNT(id) FILTER (WHERE state = 0)"),
-                Alias::new("unread"),
-            )
-            .expr_as(
-                Expr::cust("COUNT(id) FILTER (WHERE state = 1)"),
-                Alias::new("read"),
-            )
-            .expr_as(
-                Expr::cust("COUNT(id) FILTER (WHERE state = 2)"),
-                Alias::new("archived"),
-            )
-            .group_by_col(MessageIden::Mailbox)
-            .order_by_expr(Expr::cust("count"), Order::Desc)
-            .order_by(MessageIden::Mailbox, Order::Asc)
-            .build(SqliteQueryBuilder);
-
-        let mut statement = self.connection.prepare(sql.as_str())?;
-        let summaries = statement
-            .query_map(RusqliteValues::from(values).as_params().as_slice(), |row| {
-                Ok(MailboxSummary {
-                    mailbox: row.get(0)?,
-                    count: row.get(1)?,
-                    unread: row.get(2)?,
-                    read: row.get(3)?,
-                    archived: row.get(4)?,
-                })
-            })?
-            .collect::<Result<Vec<MailboxSummary>, _>>()
-            .context("Failed to summarize messages")?;
-        Ok(summaries)
     }
 
     // Return an error if the new message invalid
@@ -431,39 +367,6 @@ mod tests {
             &MessageFilter::new().with_states(vec![MessageState::Unread, MessageState::Read]),
         )?;
         assert_eq!(db.load_messages(&MessageFilter::new())?.len(), 1);
-        Ok(())
-    }
-
-    #[test]
-    fn test_summarize() -> Result<()> {
-        let mut db = get_populated_db()?;
-        let summary = db.summarize_messages()?;
-        assert_eq!(
-            summary,
-            vec![
-                MailboxSummary {
-                    mailbox: "read".to_string(),
-                    count: 3,
-                    unread: 0,
-                    read: 3,
-                    archived: 0
-                },
-                MailboxSummary {
-                    mailbox: "unread".to_string(),
-                    count: 2,
-                    unread: 2,
-                    read: 0,
-                    archived: 0
-                },
-                MailboxSummary {
-                    mailbox: "archived".to_string(),
-                    count: 1,
-                    unread: 0,
-                    read: 0,
-                    archived: 1
-                },
-            ]
-        );
         Ok(())
     }
 }

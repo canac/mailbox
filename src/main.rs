@@ -198,12 +198,6 @@ fn main() -> Result<()> {
             print!("{}", formatter.format_messages(&messages))
         }
 
-        Command::Summarize => {
-            for summary in db.summarize_messages()? {
-                println!("{summary}");
-            }
-        }
-
         Command::Config { subcommand } => match subcommand {
             ConfigSubcommand::Locate => println!("{}", get_config_path()?.to_string_lossy()),
             ConfigSubcommand::Edit => edit_config()?,

@@ -92,9 +92,6 @@ pub enum Command {
         mailbox: Option<String>,
     },
 
-    /// Summarize all mailboxes
-    Summarize,
-
     /// Manage the configuration
     Config {
         #[clap(subcommand)]
