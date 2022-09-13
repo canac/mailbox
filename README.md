@@ -155,6 +155,19 @@ The following keyboard commands allow navigating and performing operations on th
 - `a`: mark the selected messages or the message under the cursor as archived
 - `Ctrl+x`: delete the selected messages or the message under the cursor
 
+### Command line arguments
+
+You can also set the initial message filters by passing the `--state` or `--mailbox` command line arguments, similar to `mailbox view`.
+
+```sh
+# Unread and read messages are initially shown
+$ mailbox tui --state=unarchived
+
+# Read messages in the online-backup mailbox are initially shown
+$ mailbox tui --state=read --mailbox=online-backup
+
+```
+
 ## Starship notifications
 
 You'll probably want to get notifications for your unread messages somehow. A custom terminal prompt via [Starship](https://starship.rs) is a great way to do that! Add this to `~/.config/starship.toml` enable mailbox notifications:

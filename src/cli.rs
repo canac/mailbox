@@ -93,7 +93,15 @@ pub enum Command {
     },
 
     /// Open an interactive terminal UI to interact with messages
-    Tui,
+    Tui {
+        /// Set the initial mailbox filter to a particular mailbox
+        #[clap(short = 'm', long)]
+        mailbox: Option<String>,
+
+        /// Set the initial message state filter to particular states
+        #[clap(value_enum, short = 's', long, default_value = "unread")]
+        state: ViewMessageState,
+    },
 
     /// Manage the configuration
     Config {

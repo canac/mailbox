@@ -57,15 +57,31 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(db: Database) -> Result<App> {
+    pub fn new(
+        db: Database,
+        initial_mailbox: Option<String>,
+        initial_states: Vec<MessageState>,
+    ) -> Result<App> {
         let mut app = App {
             active_pane: Pane::Messages,
             mailboxes: TreeList::new(),
             messages: MultiselectList::new(),
-            active_states: [MessageState::Unread].into_iter().collect(),
+            active_states: initial_states.into_iter().collect(),
             db,
         };
         app.update_mailboxes()?;
+        if let Some(mailbox_name) = initial_mailbox {
+            app.mailboxes
+                .set_cursor(app.mailboxes.get_items().iter().enumerate().find_map(
+                    |(index, mailbox)| {
+                        if mailbox.full_name == mailbox_name {
+                            Some(index)
+                        } else {
+                            None
+                        }
+                    },
+                ));
+        }
         app.update_messages()?;
         Ok(app)
     }

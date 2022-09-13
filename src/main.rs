@@ -17,7 +17,7 @@ use crate::import::read_messages_stdin;
 use crate::message::MessageState;
 use anyhow::{bail, Context, Result};
 use clap::Parser;
-use cli::ConfigSubcommand;
+use cli::{ConfigSubcommand, ViewMessageState};
 use directories::ProjectDirs;
 use import::import_messages;
 use message_filter::MessageFilter;
@@ -106,6 +106,23 @@ fn create_formatter(cli: &Cli) -> Result<MessageFormatter> {
         .with_max_lines(size.map(|(_, height)| height)))
 }
 
+// Convert a ViewMessageState into the list of states that it represents
+fn states_from_view_message_state(state: ViewMessageState) -> Vec<MessageState> {
+    match state {
+        ViewMessageState::Unread => vec![MessageState::Unread],
+        ViewMessageState::Read => vec![MessageState::Read],
+        ViewMessageState::Archived => vec![MessageState::Archived],
+        ViewMessageState::Unarchived => {
+            vec![MessageState::Unread, MessageState::Read]
+        }
+        ViewMessageState::All => vec![
+            MessageState::Unread,
+            MessageState::Read,
+            MessageState::Archived,
+        ],
+    }
+}
+
 fn main() -> Result<()> {
     // Fix broken pipe panics
     sigpipe::reset();
@@ -149,23 +166,10 @@ fn main() -> Result<()> {
         }
 
         Command::View { mailbox, state } => {
-            let states = match state {
-                cli::ViewMessageState::Unread => vec![MessageState::Unread],
-                cli::ViewMessageState::Read => vec![MessageState::Read],
-                cli::ViewMessageState::Archived => vec![MessageState::Archived],
-                cli::ViewMessageState::Unarchived => {
-                    vec![MessageState::Unread, MessageState::Read]
-                }
-                cli::ViewMessageState::All => vec![
-                    MessageState::Unread,
-                    MessageState::Read,
-                    MessageState::Archived,
-                ],
-            };
             let messages = db.load_messages(
                 MessageFilter::new()
                     .with_mailbox_option(mailbox)
-                    .with_states(states),
+                    .with_states(states_from_view_message_state(state)),
             )?;
             print!("{}", formatter.format_messages(&messages))
         }
@@ -199,7 +203,9 @@ fn main() -> Result<()> {
             print!("{}", formatter.format_messages(&messages))
         }
 
-        Command::Tui => crate::tui::run(db).unwrap(),
+        Command::Tui { mailbox, state } => {
+            crate::tui::run(db, mailbox, states_from_view_message_state(state))?
+        }
 
         Command::Config { subcommand } => match subcommand {
             ConfigSubcommand::Locate => println!("{}", get_config_path()?.to_string_lossy()),

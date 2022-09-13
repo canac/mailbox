@@ -26,7 +26,11 @@ use tui::{
     Frame, Terminal,
 };
 
-pub fn run(db: Database) -> Result<()> {
+pub fn run(
+    db: Database,
+    initial_mailbox: Option<String>,
+    initial_states: Vec<MessageState>,
+) -> Result<()> {
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -36,7 +40,7 @@ pub fn run(db: Database) -> Result<()> {
 
     // Create app and run it
     let tick_rate = Duration::from_millis(250);
-    let app = App::new(db)?;
+    let app = App::new(db, initial_mailbox, initial_states)?;
     let res = run_app(&mut terminal, app, tick_rate);
 
     // Restore terminal
