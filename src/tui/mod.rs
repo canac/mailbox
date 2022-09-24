@@ -121,6 +121,7 @@ fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
             }
             app.update_messages()?;
         }
+        KeyCode::Char('K') => app.mailboxes.parent(),
         _ => {}
     }
 

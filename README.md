@@ -132,6 +132,7 @@ The following keyboard commands allow navigating and performing operations on th
 
 - `j` or `down`: move the cursor down one mailbox
 - `k` or `up`: move the cursor up one mailbox
+- `Shift+k`: move the cursor to the parent mailbox
 - `Ctrl+j` or `Ctrl+down`: move the cursor to the next mailbox in the tree at the same depth or shallower, skipping over deeper mailboxes
 - `Ctrl+k` or `Ctrl+up`: move the cursor to the previous mailbox in the tree at the same depth or shallower, skipping over deeper mailboxes
 - `Escape`: remove the cursor

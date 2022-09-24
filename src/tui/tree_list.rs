@@ -82,6 +82,26 @@ impl<Item: Depth + Keyed> TreeList<Item> {
             }
         }
     }
+
+    // Move the cursor to the parent in the tree
+    pub fn parent(&mut self) {
+        match self.get_cursor_item().map(|item| item.get_depth()) {
+            None => {}
+            Some(0) => self.remove_cursor(),
+            Some(current_depth) => {
+                let new_index = self
+                    .items
+                    .iter()
+                    .enumerate()
+                    .take(self.get_cursor().unwrap_or(0))
+                    .rfind(|(_, item)| item.get_depth() == current_depth - 1)
+                    .map(|(index, _)| index);
+                if new_index.is_some() {
+                    self.set_cursor(new_index)
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -185,5 +205,32 @@ mod tests {
         tree.set_cursor(Some(0));
         tree.previous_sibling();
         assert_eq!(tree.get_cursor(), Some(0));
+    }
+
+    #[test]
+    fn test_parent() {
+        let mut tree = get_tree();
+        tree.set_cursor(Some(5));
+
+        tree.parent();
+        assert_eq!(tree.get_cursor(), Some(4));
+
+        tree.parent();
+        assert_eq!(tree.get_cursor(), Some(1));
+    }
+
+    #[test]
+    fn test_parent_no_cursor() {
+        let mut tree = get_tree();
+        tree.parent();
+        assert_eq!(tree.get_cursor(), None);
+    }
+
+    #[test]
+    fn test_parent_beginning() {
+        let mut tree = get_tree();
+        tree.set_cursor(Some(0));
+        tree.parent();
+        assert_eq!(tree.get_cursor(), None);
     }
 }
