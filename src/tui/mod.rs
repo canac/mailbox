@@ -101,7 +101,10 @@ fn handle_global_key(app: &mut App, key: KeyEvent) -> Result<()> {
 fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
     let control = key.modifiers.contains(KeyModifiers::CONTROL);
     match key.code {
-        KeyCode::Esc => app.mailboxes.remove_cursor(),
+        KeyCode::Esc => {
+            app.mailboxes.remove_cursor();
+            app.update_messages()?;
+        }
         KeyCode::Down | KeyCode::Char('j') => {
             if control {
                 app.mailboxes.next_sibling();
