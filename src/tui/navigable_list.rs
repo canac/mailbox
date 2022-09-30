@@ -77,10 +77,15 @@ where
     fn replace_items(&mut self, items: Vec<Item>) {
         let cursor_candidates = match self.get_cursor() {
             None => vec![],
+            // The items at and after the cursor are the first candidates,
+            // starting with the items closest to the cursor, followed by
+            // the items before the cursor, again starting with the items
+            // closest to the cursor
             Some(index) => self
                 .get_items()
                 .iter()
                 .skip(index)
+                .chain(self.get_items().iter().take(index).rev())
                 .map(|item| item.get_key())
                 .collect(),
         };
@@ -174,10 +179,18 @@ mod tests {
     }
 
     #[test]
-    fn test_replace_items_remove() {
+    fn test_replace_items_remove_some() {
         let mut list = get_sized_list(5);
         list.set_cursor(Some(2));
         list.replace_items(vec![0, 1]);
+        assert_eq!(list.cursor, Some(1));
+    }
+
+    #[test]
+    fn test_replace_items_remove_all() {
+        let mut list = get_sized_list(5);
+        list.set_cursor(Some(2));
+        list.replace_items(vec![5, 6]);
         assert_eq!(list.cursor, None);
     }
 
