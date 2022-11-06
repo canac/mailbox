@@ -255,7 +255,7 @@ impl MessageFormatter {
             })
             .collect::<Vec<_>>()
             .join("")
-            + &hidden_mailboxes_message.unwrap_or_else(|| "".to_string())
+            + &hidden_mailboxes_message.unwrap_or_default()
     }
 
     // Pluralize a word if count is not 1
