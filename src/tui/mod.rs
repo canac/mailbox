@@ -17,6 +17,7 @@ use crossterm::{
 };
 use std::io;
 use std::time::{Duration, Instant};
+use tui::layout::Rect;
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
@@ -150,11 +151,11 @@ fn handle_message_key(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Char('G') => app.messages.set_all_selected(false),
         KeyCode::Down | KeyCode::Char('j') => {
             app.messages
-                .move_cursor_relative(if control { 10 } else { 1 })
+                .move_cursor_relative(if control { 10 } else { 1 });
         }
         KeyCode::Up | KeyCode::Char('k') => {
             app.messages
-                .move_cursor_relative(if control { -10 } else { -1 })
+                .move_cursor_relative(if control { -10 } else { -1 });
         }
         KeyCode::Char('J') => app.messages.last(),
         KeyCode::Char('K') => app.messages.first(),
@@ -163,7 +164,7 @@ fn handle_message_key(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Char('u') if !control => app.set_selected_message_states(MessageState::Unread)?,
         KeyCode::Char('r') if !control => app.set_selected_message_states(MessageState::Read)?,
         KeyCode::Char('a') if !control => {
-            app.set_selected_message_states(MessageState::Archived)?
+            app.set_selected_message_states(MessageState::Archived)?;
         }
         KeyCode::Char('x') if control => app.delete_selected_messages()?,
         _ => {}
@@ -192,6 +193,13 @@ fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
         .constraints([Constraint::Percentage(25), Constraint::Percentage(75)].as_ref())
         .split(chunks[0]);
 
+    render_footer(frame, app, chunks[1]);
+    render_mailboxes(frame, app, content_chunks[0]);
+    render_messages(frame, app, content_chunks[1]);
+}
+
+// Render the footer section of the UI
+fn render_footer<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) {
     let active_style = Style::default().fg(Color::Black).bg(Color::Green);
     let inactive_style = Style::default();
     let footer = Paragraph::new(Spans::from(vec![
@@ -232,8 +240,11 @@ fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
             Style::default().fg(Color::LightBlue),
         ),
     ]));
-    frame.render_widget(footer, chunks[1]);
+    frame.render_widget(footer, area);
+}
 
+// Render the mailboxes section of the UI
+fn render_mailboxes<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) {
     let mailboxes = app
         .mailboxes
         .get_items()
@@ -252,7 +263,7 @@ fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
         .collect::<Vec<_>>();
     let border_style = match app.active_pane {
         Pane::Mailboxes => Style::default().fg(Color::LightBlue),
-        _ => Style::default(),
+        Pane::Messages => Style::default(),
     };
     let mailboxes_list = List::new(mailboxes)
         .block(
@@ -262,7 +273,7 @@ fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
                 .title(format!(
                     "Mailboxes ({}{})",
                     match app.mailboxes.get_cursor() {
-                        None => "".to_string(),
+                        None => String::new(),
                         Some(index) => format!("{}/", index + 1),
                     },
                     app.mailboxes.get_items().len()
@@ -273,12 +284,11 @@ fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
                 .bg(Color::LightBlue)
                 .add_modifier(Modifier::BOLD),
         );
-    frame.render_stateful_widget(
-        mailboxes_list,
-        content_chunks[0],
-        app.mailboxes.get_list_state(),
-    );
+    frame.render_stateful_widget(mailboxes_list, area, app.mailboxes.get_list_state());
+}
 
+// Render the messages section of the UI
+fn render_messages<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) {
     let messages = app
         .messages
         .iter_items_with_selected()
@@ -315,7 +325,7 @@ fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
         .collect::<Vec<_>>();
     let border_style = match app.active_pane {
         Pane::Messages => Style::default().fg(Color::LightBlue),
-        _ => Style::default(),
+        Pane::Mailboxes => Style::default(),
     };
     let messages_list = List::new(messages)
         .block(
@@ -325,7 +335,7 @@ fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
                 .title(format!(
                     "Messages ({}{})",
                     match app.messages.get_cursor() {
-                        None => "".to_string(),
+                        None => String::new(),
                         Some(index) => format!("{}/", index + 1),
                     },
                     app.messages.get_items().len()
@@ -336,9 +346,5 @@ fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
                 .bg(Color::LightBlue)
                 .add_modifier(Modifier::BOLD),
         );
-    frame.render_stateful_widget(
-        messages_list,
-        content_chunks[1],
-        app.messages.get_list_state(),
-    );
+    frame.render_stateful_widget(messages_list, area, app.messages.get_list_state());
 }

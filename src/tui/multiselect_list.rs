@@ -1,6 +1,5 @@
-use std::collections::HashSet;
-
 use super::navigable_list::{Keyed, NavigableList};
+use std::collections::HashSet;
 use tui::widgets::ListState;
 
 #[derive(Clone, Copy)]
@@ -120,7 +119,7 @@ where
         self.selected_items = self
             .items
             .iter()
-            .map(|item| item.get_key())
+            .map(Keyed::get_key)
             .filter(|id| old_selected_items.contains(id))
             .collect();
 
@@ -144,7 +143,7 @@ where
 
     // Toggle the selection state of the item at the cursor
     pub fn toggle_cursor_selected(&mut self) {
-        if let Some(key) = self.get_cursor_item().map(|item| item.get_key()) {
+        if let Some(key) = self.get_cursor_item().map(Keyed::get_key) {
             self.set_item_selected(key, !self.get_item_selected(key));
         }
     }
@@ -152,7 +151,7 @@ where
     // Set the selected state of all items
     pub fn set_all_selected(&mut self, new_selected: bool) {
         if new_selected {
-            self.selected_items = self.items.iter().map(|item| item.get_key()).collect();
+            self.selected_items = self.items.iter().map(Keyed::get_key).collect();
         } else {
             self.selected_items.clear();
         }
@@ -308,20 +307,20 @@ mod tests {
         let mut list = get_sized_list(5);
 
         assert_eq!(
-            list.get_selected_items().cloned().collect::<Vec<_>>(),
+            list.get_selected_items().copied().collect::<Vec<_>>(),
             Vec::<Item>::new()
         );
 
         list.set_cursor(Some(2));
         list.toggle_cursor_selected();
         assert_eq!(
-            list.selected_items.iter().cloned().collect::<Vec<_>>(),
+            list.selected_items.iter().copied().collect::<Vec<_>>(),
             vec![2]
         );
 
         list.set_all_selected(true);
         assert_eq!(
-            list.get_selected_items().cloned().collect::<Vec<_>>(),
+            list.get_selected_items().copied().collect::<Vec<_>>(),
             vec![0, 1, 2, 3, 4]
         );
     }

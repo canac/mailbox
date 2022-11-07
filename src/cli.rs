@@ -7,13 +7,13 @@ pub enum AddMessageState {
     Archived,
 }
 
-#[derive(Clone, ValueEnum)]
+#[derive(Clone, Copy, ValueEnum)]
 pub enum ImportMessageFormat {
     Json,
     Tsv,
 }
 
-#[derive(Clone, ValueEnum)]
+#[derive(Clone, Copy, ValueEnum)]
 pub enum ViewMessageState {
     Unread,
     Read,

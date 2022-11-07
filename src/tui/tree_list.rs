@@ -47,7 +47,7 @@ impl<Item: Depth + Keyed> TreeList<Item> {
 
     // Move the cursor to the next sibling or ancestor in the tree, skipping over descendants
     pub fn next_sibling(&mut self) {
-        match self.get_cursor_item().map(|item| item.get_depth()) {
+        match self.get_cursor_item().map(Depth::get_depth) {
             None => self.next(),
             Some(current_depth) => {
                 let new_index = self
@@ -58,7 +58,7 @@ impl<Item: Depth + Keyed> TreeList<Item> {
                     .find(|(_, item)| item.get_depth() <= current_depth)
                     .map(|(index, _)| index);
                 if new_index.is_some() {
-                    self.set_cursor(new_index)
+                    self.set_cursor(new_index);
                 }
             }
         }
@@ -66,7 +66,7 @@ impl<Item: Depth + Keyed> TreeList<Item> {
 
     // Move the cursor to the previous sibling or ancestor in the tree, skipping over descendants
     pub fn previous_sibling(&mut self) {
-        match self.get_cursor_item().map(|item| item.get_depth()) {
+        match self.get_cursor_item().map(Depth::get_depth) {
             None => self.previous(),
             Some(current_depth) => {
                 let new_index = self
@@ -77,7 +77,7 @@ impl<Item: Depth + Keyed> TreeList<Item> {
                     .rfind(|(_, item)| item.get_depth() <= current_depth)
                     .map(|(index, _)| index);
                 if new_index.is_some() {
-                    self.set_cursor(new_index)
+                    self.set_cursor(new_index);
                 }
             }
         }
@@ -85,7 +85,7 @@ impl<Item: Depth + Keyed> TreeList<Item> {
 
     // Move the cursor to the parent in the tree
     pub fn parent(&mut self) {
-        match self.get_cursor_item().map(|item| item.get_depth()) {
+        match self.get_cursor_item().map(Depth::get_depth) {
             None => {}
             Some(0) => self.remove_cursor(),
             Some(current_depth) => {
@@ -97,7 +97,7 @@ impl<Item: Depth + Keyed> TreeList<Item> {
                     .rfind(|(_, item)| item.get_depth() == current_depth - 1)
                     .map(|(index, _)| index);
                 if new_index.is_some() {
-                    self.set_cursor(new_index)
+                    self.set_cursor(new_index);
                 }
             }
         }

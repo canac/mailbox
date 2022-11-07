@@ -86,7 +86,7 @@ where
                 .iter()
                 .skip(index)
                 .chain(self.get_items().iter().take(index).rev())
-                .map(|item| item.get_key())
+                .map(Keyed::get_key)
                 .collect(),
         };
 
@@ -104,7 +104,7 @@ where
             cursor_candidates
                 .into_iter()
                 .find_map(|key| new_keys.get(&key))
-                .cloned(),
+                .copied(),
         );
     }
 }

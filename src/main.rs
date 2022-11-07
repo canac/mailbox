@@ -1,3 +1,10 @@
+#![warn(clippy::pedantic)]
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::module_name_repetitions
+)]
+
 mod cli;
 mod config;
 mod database;
@@ -51,7 +58,7 @@ fn get_config_path() -> Result<PathBuf> {
 
 // Load the configuration file
 fn load_config() -> Result<Option<Config>> {
-    Config::load(get_config_path()?)
+    Config::load(&get_config_path()?)
 }
 
 // Open the configuration file in $EDITOR
@@ -69,10 +76,11 @@ fn edit_config() -> Result<()> {
 }
 
 // Create the message formatter
-fn create_formatter(cli: &Cli) -> Result<MessageFormatter> {
-    let tty = atty::is(atty::Stream::Stdout);
+fn create_formatter(cli: &Cli) -> MessageFormatter {
     const DEFAULT_WIDTH: usize = 80;
     const DEFAULT_HEIGHT: usize = 8;
+
+    let tty = atty::is(atty::Stream::Stdout);
     let size = if !cli.full_output && tty {
         match crossterm::terminal::size() {
             Ok((width, height)) => Some((
@@ -99,11 +107,11 @@ fn create_formatter(cli: &Cli) -> Result<MessageFormatter> {
             TimestampFormat::Local
         }
     });
-    Ok(MessageFormatter::new()
+    MessageFormatter::new()
         .with_color(colorize)
         .with_timestamp_format(timestamp_format)
         .with_max_columns(size.map(|(width, _)| width))
-        .with_max_lines(size.map(|(_, height)| height)))
+        .with_max_lines(size.map(|(_, height)| height))
 }
 
 // Convert a ViewMessageState into the list of states that it represents
@@ -129,7 +137,7 @@ fn main() -> Result<()> {
 
     let mut db = load_database()?;
     let cli = Cli::parse();
-    let formatter = create_formatter(&cli)?;
+    let formatter = create_formatter(&cli);
 
     // Let us control the coloring instead of colored
     colored::control::set_override(true);
@@ -152,7 +160,7 @@ fn main() -> Result<()> {
             }];
             let config = load_config()?;
             let messages = import_messages(&mut db, &config, raw_messages)?;
-            print!("{}", formatter.format_messages(&messages))
+            print!("{}", formatter.format_messages(&messages));
         }
 
         Command::Import { format } => {
@@ -162,7 +170,7 @@ fn main() -> Result<()> {
                 &config,
                 read_messages_stdin(stdin().lock(), format),
             )?;
-            print!("{}", formatter.format_messages(&messages))
+            print!("{}", formatter.format_messages(&messages));
         }
 
         Command::View { mailbox, state } => {
@@ -171,7 +179,7 @@ fn main() -> Result<()> {
                     .with_mailbox_option(mailbox)
                     .with_states(states_from_view_message_state(state)),
             )?;
-            print!("{}", formatter.format_messages(&messages))
+            print!("{}", formatter.format_messages(&messages));
         }
 
         Command::Read { mailbox } => {
@@ -181,7 +189,7 @@ fn main() -> Result<()> {
                     .with_states(vec![MessageState::Unread]),
                 MessageState::Read,
             )?;
-            print!("{}", formatter.format_messages(&messages))
+            print!("{}", formatter.format_messages(&messages));
         }
 
         Command::Archive { mailbox } => {
@@ -191,7 +199,7 @@ fn main() -> Result<()> {
                     .with_states(vec![MessageState::Unread, MessageState::Read]),
                 MessageState::Archived,
             )?;
-            print!("{}", formatter.format_messages(&messages))
+            print!("{}", formatter.format_messages(&messages));
         }
 
         Command::Clear { mailbox } => {
@@ -200,11 +208,11 @@ fn main() -> Result<()> {
                     .with_mailbox_option(mailbox)
                     .with_states(vec![MessageState::Archived]),
             )?;
-            print!("{}", formatter.format_messages(&messages))
+            print!("{}", formatter.format_messages(&messages));
         }
 
         Command::Tui { mailbox, state } => {
-            crate::tui::run(db, mailbox, states_from_view_message_state(state))?
+            crate::tui::run(db, mailbox, states_from_view_message_state(state))?;
         }
 
         Command::Config { subcommand } => match subcommand {

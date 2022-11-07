@@ -152,7 +152,7 @@ impl App {
 
     // Return a vector of the active states
     fn get_active_states(&self) -> Vec<MessageState> {
-        self.active_states.iter().cloned().collect()
+        self.active_states.iter().copied().collect()
     }
 
     // Get the filter representing which messages should be displayed

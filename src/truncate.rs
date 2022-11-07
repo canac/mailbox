@@ -1,9 +1,9 @@
 use colored::{ColoredString, Colorize};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
-type ApplyColor = fn(String) -> ColoredString;
+type ApplyColor = fn(&str) -> ColoredString;
 
-fn no_color(str: String) -> ColoredString {
+fn no_color(str: &str) -> ColoredString {
     str.normal()
 }
 
@@ -21,7 +21,7 @@ impl TruncatedLine {
     pub fn new(max_columns: usize) -> Self {
         TruncatedLine {
             available_columns: max_columns,
-            sections: Default::default(),
+            sections: Vec::default(),
         }
     }
 
@@ -47,7 +47,7 @@ impl TruncatedLine {
             // Force truncation if necessary by adding an extra character that
             // will be truncated off
             let (truncated, width) = truncate_string(
-                format!("{new_chars}{}", if force_truncate { " " } else { "" }),
+                &format!("{new_chars}{}", if force_truncate { " " } else { "" }),
                 remaining_columns,
             );
             remaining_columns -= width;
@@ -56,9 +56,9 @@ impl TruncatedLine {
                 line,
                 if truncated.is_empty() {
                     // Don't add color codes to empty strings
-                    no_color("".to_string())
+                    no_color("")
                 } else {
-                    colorize(truncated)
+                    colorize(&truncated)
                 }
             );
 
@@ -85,7 +85,7 @@ impl ToString for TruncatedLine {
 // Returns the truncated string and its width
 // Uses the algorithm in https://github.com/Aetf/unicode-truncate with added
 // support for adding ellipses when the string is truncated
-pub fn truncate_string(input: String, width: usize) -> (String, usize) {
+pub fn truncate_string(input: &str, width: usize) -> (String, usize) {
     let (add_ellipsis, byte_index, new_width) = input
         .char_indices()
         // Map to byte index and the width of the substring starting at the index
@@ -196,7 +196,11 @@ mod tests {
 
         let mut line = TruncatedLine::new(11);
         line.append("hello ", None);
-        line.append("world", Some(|str| str.red()));
+        line.append(
+            "world",
+            #[allow(clippy::redundant_closure_for_method_calls)]
+            Some(|str| str.red()),
+        );
         assert_eq!(line.to_string(), "hello \u{1b}[31mworld\u{1b}[0m");
 
         colored::control::unset_override();
@@ -209,7 +213,11 @@ mod tests {
 
         let mut line = TruncatedLine::new(5);
         line.append("hello ", None);
-        line.append("world", Some(|str| str.red()));
+        line.append(
+            "world",
+            #[allow(clippy::redundant_closure_for_method_calls)]
+            Some(|str| str.red()),
+        );
         assert_eq!(line.to_string(), "hell…");
 
         colored::control::unset_override();
@@ -218,17 +226,14 @@ mod tests {
     #[test]
     fn test_truncate_string() {
         let message = "Hello, world!";
-        assert_eq!(truncate_string(message.to_string(), 0), ("".to_string(), 0));
+        assert_eq!(truncate_string(message, 0), (String::new(), 0));
+        assert_eq!(truncate_string(message, 6), ("Hello…".to_string(), 6));
         assert_eq!(
-            truncate_string(message.to_string(), 6),
-            ("Hello…".to_string(), 6)
-        );
-        assert_eq!(
-            truncate_string(message.to_string(), 13),
+            truncate_string(message, 13),
             ("Hello, world!".to_string(), 13)
         );
         assert_eq!(
-            truncate_string(message.to_string(), 20),
+            truncate_string(message, 20),
             ("Hello, world!".to_string(), 13)
         );
     }
@@ -236,21 +241,15 @@ mod tests {
     #[test]
     fn test_truncate_string_unicode() {
         let message = "⭐a⭐b⭐c⭐";
-        assert_eq!(truncate_string(message.to_string(), 0), ("".to_string(), 0));
+        assert_eq!(truncate_string(message, 0), (String::new(), 0));
+        assert_eq!(truncate_string(message, 5), ("⭐a…".to_string(), 4));
+        assert_eq!(truncate_string(message, 6), ("⭐a⭐…".to_string(), 6));
         assert_eq!(
-            truncate_string(message.to_string(), 5),
-            ("⭐a…".to_string(), 4)
-        );
-        assert_eq!(
-            truncate_string(message.to_string(), 6),
-            ("⭐a⭐…".to_string(), 6)
-        );
-        assert_eq!(
-            truncate_string(message.to_string(), 11),
+            truncate_string(message, 11),
             ("⭐a⭐b⭐c⭐".to_string(), 11)
         );
         assert_eq!(
-            truncate_string(message.to_string(), 20),
+            truncate_string(message, 20),
             ("⭐a⭐b⭐c⭐".to_string(), 11)
         );
     }

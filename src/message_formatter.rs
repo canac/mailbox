@@ -98,7 +98,7 @@ impl MessageFormatter {
 
     // Format a single message into a string. There will not be a newline at the end.
     pub fn format_message(&self, message: &Message, appendix: Option<String>) -> String {
-        use colored::*;
+        use colored::Colorize;
 
         // Display the time differently based on the requested format
         let time = match self.timestamp_format {
@@ -128,7 +128,7 @@ impl MessageFormatter {
         line.append(
             components.state.to_string(),
             if matches!(message.state, MessageState::Unread) && self.color {
-                Some(|str: String| str.red().bold())
+                Some(|str: &str| str.red().bold())
             } else {
                 None
             },
@@ -137,7 +137,7 @@ impl MessageFormatter {
         line.append(
             components.mailbox,
             if self.color {
-                Some(|str: String| str.green().bold())
+                Some(|str: &str| str.green().bold())
             } else {
                 None
             },
@@ -146,7 +146,8 @@ impl MessageFormatter {
         line.append(
             components.time,
             if self.color {
-                Some(|str: String| str.yellow())
+                #[allow(clippy::redundant_closure_for_method_calls)]
+                Some(|str: &str| str.yellow())
             } else {
                 None
             },
@@ -186,7 +187,7 @@ impl MessageFormatter {
         // Distribute the available lines to the mailboxes as evenly as possible
         let mut line = 0;
         while line < max_lines {
-            for mailbox in mailboxes.iter_mut() {
+            for mailbox in &mut mailboxes {
                 if mailbox.allocated_lines < mailbox.messages.len() {
                     mailbox.allocated_lines += 1;
                     line += 1;
@@ -222,7 +223,7 @@ impl MessageFormatter {
             Some(format!(
                 "(+{} older messages in {})\n",
                 hidden_message_count,
-                Self::summarize_hidden_mailboxes(hidden_mailboxes),
+                Self::summarize_hidden_mailboxes(&hidden_mailboxes),
             ))
         };
 
@@ -253,8 +254,7 @@ impl MessageFormatter {
                         self.format_message(message, hidden_messages_hint) + "\n"
                     })
             })
-            .collect::<Vec<_>>()
-            .join("")
+            .collect::<String>()
             + &hidden_mailboxes_message.unwrap_or_default()
     }
 
@@ -269,10 +269,10 @@ impl MessageFormatter {
     }
 
     // Create a human-readable single-line summary of the mailboxes that were hidden
-    fn summarize_hidden_mailboxes(hidden_mailboxes: Vec<&Mailbox>) -> String {
+    fn summarize_hidden_mailboxes(hidden_mailboxes: &[&Mailbox]) -> String {
         let count = hidden_mailboxes.len();
         if count == 0 {
-            "".to_string()
+            String::new()
         } else if count == 1 {
             hidden_mailboxes[0].name.to_string()
         } else if count == 2 {
@@ -307,7 +307,7 @@ mod tests {
     fn make_message(mailbox: &str, content: &str, timestamp_offset: i64) -> Message {
         Message {
             id: 1,
-            timestamp: NaiveDateTime::from_timestamp(1640995200 + timestamp_offset, 0),
+            timestamp: NaiveDateTime::from_timestamp(1_640_995_200 + timestamp_offset, 0),
             mailbox: mailbox.into(),
             content: content.into(),
             state: MessageState::Unread,

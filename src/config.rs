@@ -22,8 +22,8 @@ pub struct Config {
 
 impl Config {
     // Load the configuration file from the provided path
-    pub fn load(path: PathBuf) -> Result<Option<Self>> {
-        match std::fs::read_to_string(&path) {
+    pub fn load(path: &PathBuf) -> Result<Option<Self>> {
+        match std::fs::read_to_string(path) {
             Ok(contents) => Ok(Some(toml::from_str(&contents).with_context(|| {
                 format!("Failed to parse config file {}", path.to_string_lossy())
             })?)),
@@ -38,7 +38,7 @@ impl Config {
         (0..sections.len())
             .rev()
             .find_map(|index| self.overrides.get(&sections[0..=index].join("/")))
-            .cloned()
+            .copied()
     }
 
     // Take an iterator of new messages and apply the overrides defined in
