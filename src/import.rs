@@ -50,7 +50,7 @@ where
         Ok(message) => Some(message),
         Err(err) => {
             // Print an error if there was an error, keeping the other valid lines
-            eprintln!("{:?}", err);
+            eprintln!("{err:?}");
             None
         }
     })
