@@ -125,7 +125,7 @@ impl App {
                     });
             }
         }
-        let mut mailboxes = mailboxes.into_values().into_iter().collect::<Vec<_>>();
+        let mut mailboxes = mailboxes.into_values().collect::<Vec<_>>();
         mailboxes.sort_by(|mailbox1, mailbox2| mailbox1.full_name.cmp(&mailbox2.full_name));
         self.mailboxes.replace_items(mailboxes);
         Ok(())
