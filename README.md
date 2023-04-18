@@ -155,6 +155,7 @@ The following keyboard commands allow navigating and performing operations on th
 - `r`: mark the selected messages or the message under the cursor as read
 - `a`: mark the selected messages or the message under the cursor as archived
 - `Ctrl+x`: delete the selected messages or the message under the cursor
+- `Enter`: open the URL in the message under the cursor in a web browser
 
 ### Command line arguments
 

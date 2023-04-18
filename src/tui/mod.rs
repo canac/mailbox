@@ -15,6 +15,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use linkify::{LinkFinder, LinkKind};
 use std::io;
 use std::time::{Duration, Instant};
 use tui::layout::Rect;
@@ -167,6 +168,11 @@ fn handle_message_key(app: &mut App, key: KeyEvent) -> Result<()> {
             app.set_selected_message_states(MessageState::Archived)?;
         }
         KeyCode::Char('x') if control => app.delete_selected_messages()?,
+        KeyCode::Enter => {
+            if let Some(message) = app.messages.get_cursor_item() {
+                open_message(message)?;
+            }
+        }
         _ => {}
     }
 
@@ -347,4 +353,16 @@ fn render_messages<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) 
                 .add_modifier(Modifier::BOLD),
         );
     frame.render_stateful_widget(messages_list, area, app.messages.get_list_state());
+}
+
+// If the message contains a URL, open it in a web browser
+fn open_message(message: &crate::message::Message) -> Result<()> {
+    let mut finder = LinkFinder::new();
+    finder.kinds(&[LinkKind::Url]);
+
+    if let Some(link) = finder.links(&message.content).next() {
+        webbrowser::open(link.as_str())?;
+    }
+
+    Ok(())
 }
