@@ -160,7 +160,7 @@ fn main() -> Result<()> {
             }];
             let config = load_config()?;
             let messages = import_messages(&mut db, &config, raw_messages)?;
-            print!("{}", formatter.format_messages(&messages));
+            print!("{}", formatter.format_messages(&messages)?);
         }
 
         Command::Import { format } => {
@@ -170,7 +170,7 @@ fn main() -> Result<()> {
                 &config,
                 read_messages_stdin(stdin().lock(), format),
             )?;
-            print!("{}", formatter.format_messages(&messages));
+            print!("{}", formatter.format_messages(&messages)?);
         }
 
         Command::View { mailbox, state } => {
@@ -179,7 +179,7 @@ fn main() -> Result<()> {
                     .with_mailbox_option(mailbox)
                     .with_states(states_from_view_message_state(state)),
             )?;
-            print!("{}", formatter.format_messages(&messages));
+            print!("{}", formatter.format_messages(&messages)?);
         }
 
         Command::Read { mailbox } => {
@@ -189,7 +189,7 @@ fn main() -> Result<()> {
                     .with_states(vec![MessageState::Unread]),
                 MessageState::Read,
             )?;
-            print!("{}", formatter.format_messages(&messages));
+            print!("{}", formatter.format_messages(&messages)?);
         }
 
         Command::Archive { mailbox } => {
@@ -199,7 +199,7 @@ fn main() -> Result<()> {
                     .with_states(vec![MessageState::Unread, MessageState::Read]),
                 MessageState::Archived,
             )?;
-            print!("{}", formatter.format_messages(&messages));
+            print!("{}", formatter.format_messages(&messages)?);
         }
 
         Command::Clear { mailbox } => {
@@ -208,7 +208,7 @@ fn main() -> Result<()> {
                     .with_mailbox_option(mailbox)
                     .with_states(vec![MessageState::Archived]),
             )?;
-            print!("{}", formatter.format_messages(&messages));
+            print!("{}", formatter.format_messages(&messages)?);
         }
 
         Command::Tui { mailbox, state } => {

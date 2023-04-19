@@ -2,6 +2,7 @@ use crate::cli::TimestampFormat;
 use crate::message::{Message, MessageState};
 use crate::message_components::MessageComponents;
 use crate::truncate::TruncatedLine;
+use anyhow::{anyhow, Result};
 use chrono::{Local, TimeZone, Utc};
 use chrono_humanize::HumanTime;
 use std::collections::HashMap;
@@ -97,21 +98,27 @@ impl MessageFormatter {
     }
 
     // Format a single message into a string. There will not be a newline at the end.
-    pub fn format_message(&self, message: &Message, appendix: Option<String>) -> String {
+    pub fn format_message(&self, message: &Message, appendix: Option<String>) -> Result<String> {
         use colored::Colorize;
 
         // Display the time differently based on the requested format
         let time = match self.timestamp_format {
-            TimestampFormat::Relative => HumanTime::from(
-                message
-                    .timestamp
-                    .signed_duration_since(Utc::now().naive_utc()),
-            )
-            .to_string(),
-            TimestampFormat::Local => Local
-                .timestamp(message.timestamp.timestamp(), 0)
+            TimestampFormat::Relative => Some(
+                HumanTime::from(
+                    message
+                        .timestamp
+                        .signed_duration_since(Utc::now().naive_utc()),
+                )
                 .to_string(),
-            TimestampFormat::Utc => Utc.timestamp(message.timestamp.timestamp(), 0).to_string(),
+            ),
+            TimestampFormat::Local => Local
+                .timestamp_opt(message.timestamp.timestamp(), 0)
+                .single()
+                .map(|time| time.to_string()),
+            TimestampFormat::Utc => Utc
+                .timestamp_opt(message.timestamp.timestamp(), 0)
+                .single()
+                .map(|time| time.to_string()),
         };
 
         let max_columns = self.max_columns.unwrap_or(usize::MAX);
@@ -119,7 +126,7 @@ impl MessageFormatter {
             state: message.state,
             content: message.content.clone(),
             mailbox: message.mailbox.clone(),
-            time,
+            time: time.ok_or_else(|| anyhow!("Could not determine timestamp"))?,
             appendix: appendix.unwrap_or_default(),
         }
         .truncate(max_columns);
@@ -153,11 +160,11 @@ impl MessageFormatter {
             },
         );
         line.append(components.appendix, None);
-        line.to_string()
+        Ok(line.to_string())
     }
 
     // Format multiple messages into a string. There will be a newline at the end.
-    pub fn format_messages(&self, messages: &[Message]) -> String {
+    pub fn format_messages(&self, messages: &[Message]) -> Result<String> {
         // Group the messages by mailbox
         let mut mailboxes: HashMap<&String, Vec<&Message>> = HashMap::new();
         for message in messages {
@@ -228,7 +235,7 @@ impl MessageFormatter {
         };
 
         // For each mailbox, display the allocated number of messages
-        mailboxes
+        Ok(mailboxes
             .iter()
             .take(displayed_mailbox_count)
             .flat_map(|mailbox| {
@@ -251,11 +258,11 @@ impl MessageFormatter {
                             } else {
                                 None
                             };
-                        self.format_message(message, hidden_messages_hint) + "\n"
+                        Ok(self.format_message(message, hidden_messages_hint)? + "\n")
                     })
             })
-            .collect::<String>()
-            + &hidden_mailboxes_message.unwrap_or_default()
+            .collect::<Result<String>>()?
+            + &hidden_mailboxes_message.unwrap_or_default())
     }
 
     // Pluralize a word if count is not 1
@@ -326,7 +333,7 @@ mod tests {
         let messages = vec![make_message("a", "foo", 0)];
         let formatter = make_formatter();
         assert_eq!(
-            formatter.format_messages(&messages).as_str(),
+            formatter.format_messages(&messages).unwrap().as_str(),
             "* foo [a] @ 2022-01-01 00:00:00 UTC\n"
         );
     }
@@ -335,7 +342,7 @@ mod tests {
     fn test_empty() {
         let messages = vec![];
         let formatter = make_formatter();
-        assert_eq!(formatter.format_messages(&messages).as_str(), "");
+        assert_eq!(formatter.format_messages(&messages).unwrap().as_str(), "");
     }
 
     #[test]
@@ -351,7 +358,7 @@ mod tests {
         ];
         let formatter = make_formatter();
         assert_eq!(
-            formatter.format_messages(&messages).as_str(),
+            formatter.format_messages(&messages).unwrap().as_str(),
             "* b [foo] @ 2022-01-01 00:00:02 UTC
 * e [foo] @ 2022-01-01 00:00:01 UTC
 * g [foo] @ 2022-01-01 00:00:01 UTC
@@ -375,6 +382,7 @@ mod tests {
                     ),
                     Some(" appendix".to_string())
                 )
+                .unwrap()
                 .as_str(),
             "* Lorem ipsum dolo… [foo] @ 2022-01-01 00:00:00 UTC appendix"
         );
@@ -393,6 +401,7 @@ mod tests {
                     ),
                     Some(" appendix".to_string())
                 )
+                .unwrap()
                 .as_str(),
             "* a [really-really-real…] @ 2022-01-01 00:00:00 UTC appendix"
         );
@@ -411,6 +420,7 @@ mod tests {
                     ),
                     Some(" appendix".to_string())
                 )
+                .unwrap()
                 .as_str(),
             "* Lorem ips… [really-re…] @ 2022-01-01 00:00:00 UTC appendix"
         );
@@ -425,7 +435,7 @@ mod tests {
                     "really-really-really-really-really-really-really-really-long",
                     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
                     0
-                ), Some("appendix".to_string()))
+                ), Some("appendix".to_string())).unwrap()
                 .as_str(),
             "* Lor… [rea…] @ 202…"
         );
@@ -437,6 +447,7 @@ mod tests {
         assert_eq!(
             formatter
                 .format_message(&make_message("⭐⭐⭐", "⭐⭐⭐", 0), None)
+                .unwrap()
                 .as_str(),
             "* ⭐⭐⭐ [⭐⭐⭐] @ 2022-01-01 00:00:00 UTC"
         );
@@ -455,7 +466,7 @@ mod tests {
         ];
         let formatter = make_formatter().with_max_lines(Some(4));
         assert_eq!(
-            formatter.format_messages(&messages).as_str(),
+            formatter.format_messages(&messages).unwrap().as_str(),
             "* foo [b] @ 2022-01-01 00:00:02 UTC
 * foo [e] @ 2022-01-01 00:00:01 UTC
 * foo [g] @ 2022-01-01 00:00:01 UTC
@@ -476,7 +487,7 @@ mod tests {
         ];
         let formatter = make_formatter().with_max_lines(Some(4));
         assert_eq!(
-            formatter.format_messages(&messages).as_str(),
+            formatter.format_messages(&messages).unwrap().as_str(),
             "* b [foo] @ 2022-01-01 00:00:02 UTC
 * e [foo] @ 2022-01-01 00:00:01 UTC
 * g [foo] @ 2022-01-01 00:00:01 UTC
@@ -504,7 +515,7 @@ mod tests {
         ];
         let formatter = make_formatter().with_max_lines(Some(4));
         assert_eq!(
-            formatter.format_messages(&messages).as_str(),
+            formatter.format_messages(&messages).unwrap().as_str(),
             "* b [foo] @ 2022-01-01 00:00:02 UTC (+6 older messages)
 * a [bar1] @ 2022-01-01 00:00:00 UTC
 * b [bar2] @ 2022-01-01 00:00:00 UTC
@@ -525,7 +536,7 @@ mod tests {
         ];
         let formatter = make_formatter().with_max_lines(Some(4));
         assert_eq!(
-            formatter.format_messages(&messages).as_str(),
+            formatter.format_messages(&messages).unwrap().as_str(),
             "* b [foo] @ 2022-01-01 00:00:02 UTC
 * a [foo] @ 2022-01-01 00:00:00 UTC (+2 older messages)
 * e [bar] @ 2022-01-01 00:00:01 UTC
