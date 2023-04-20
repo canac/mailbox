@@ -69,6 +69,10 @@ pub enum Command {
         /// Only view messages in a particular state
         #[clap(value_enum, short = 's', long, default_value = "unread")]
         state: ViewMessageState,
+
+        /// Show all messages in output instead of summarizing
+        #[clap(short = 'f', long)]
+        full_output: bool,
     },
 
     /// Mark unread messages as read
@@ -115,10 +119,6 @@ pub enum Command {
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Command,
-
-    /// Show all messages in output instead of summarizing
-    #[clap(short = 'f', long, global = true)]
-    pub full_output: bool,
 
     /// Enable color even when terminal is not a TTY
     #[clap(long, global = true)]

@@ -81,7 +81,8 @@ fn create_formatter(cli: &Cli) -> MessageFormatter {
     const DEFAULT_HEIGHT: usize = 8;
 
     let tty = atty::is(atty::Stream::Stdout);
-    let size = if !cli.full_output && tty {
+    let truncate = matches!(cli.command, Command::View { full_output, .. } if !full_output);
+    let size = if truncate && tty {
         match crossterm::terminal::size() {
             Ok((width, height)) => Some((
                 width as usize,
@@ -173,7 +174,7 @@ fn main() -> Result<()> {
             print!("{}", formatter.format_messages(&messages)?);
         }
 
-        Command::View { mailbox, state } => {
+        Command::View { mailbox, state, .. } => {
             let messages = db.load_messages(
                 MessageFilter::new()
                     .with_mailbox_option(mailbox)
