@@ -277,29 +277,24 @@ impl MessageFormatter {
 
     // Create a human-readable single-line summary of the mailboxes that were hidden
     fn summarize_hidden_mailboxes(hidden_mailboxes: &[&Mailbox]) -> String {
-        let count = hidden_mailboxes.len();
-        if count == 0 {
-            String::new()
-        } else if count == 1 {
-            hidden_mailboxes[0].name.to_string()
-        } else if count == 2 {
-            format!(
+        match hidden_mailboxes.len() {
+            0 => String::new(),
+            1 => hidden_mailboxes[0].name.to_string(),
+            2 => format!(
                 "{} and {}",
                 hidden_mailboxes[0].name, hidden_mailboxes[1].name
-            )
-        } else if count == 3 {
-            format!(
+            ),
+            3 => format!(
                 "{}, {}, and {}",
                 hidden_mailboxes[0].name, hidden_mailboxes[1].name, hidden_mailboxes[2].name,
-            )
-        } else {
-            format!(
+            ),
+            _ => format!(
                 "{}, {}, and {} other {}",
                 hidden_mailboxes[0].name,
                 hidden_mailboxes[1].name,
                 hidden_mailboxes.len() - 2,
                 Self::pluralize_word(Word::Mailbox, hidden_mailboxes.len() - 2)
-            )
+            ),
         }
     }
 }
