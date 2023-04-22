@@ -170,7 +170,7 @@ fn handle_message_key(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Char('x') if control => app.delete_selected_messages()?,
         KeyCode::Enter => {
             if let Some(message) = app.messages.get_cursor_item() {
-                open_message(message)?;
+                open_message(message);
             }
         }
         _ => {}
@@ -356,13 +356,13 @@ fn render_messages<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) 
 }
 
 // If the message contains a URL, open it in a web browser
-fn open_message(message: &crate::message::Message) -> Result<()> {
+fn open_message(message: &crate::message::Message) {
     let mut finder = LinkFinder::new();
     finder.kinds(&[LinkKind::Url]);
 
     if let Some(link) = finder.links(&message.content).next() {
-        webbrowser::open(link.as_str())?;
+        if webbrowser::open(link.as_str()).is_err() {
+            // Silently ignore errors if the URL couldn't be opened
+        }
     }
-
-    Ok(())
 }
