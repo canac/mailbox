@@ -309,7 +309,8 @@ mod tests {
     fn make_message(mailbox: &str, content: &str, timestamp_offset: i64) -> Message {
         Message {
             id: 1,
-            timestamp: NaiveDateTime::from_timestamp(1_640_995_200 + timestamp_offset, 0),
+            timestamp: NaiveDateTime::from_timestamp_opt(1_640_995_200 + timestamp_offset, 0)
+                .unwrap(),
             mailbox: mailbox.into(),
             content: content.into(),
             state: MessageState::Unread,

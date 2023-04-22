@@ -1,12 +1,10 @@
-use self::sea_query_driver_rusqlite::RusqliteValues;
 use crate::message::{Message, MessageIden, MessageState};
 use crate::message_filter::MessageFilter;
 use crate::new_message::NewMessage;
 use anyhow::{bail, Context, Result};
 use rusqlite::Connection;
 use sea_query::{Alias, ColumnDef, Expr, Func, Order, Query, SqliteQueryBuilder, Table, Value};
-
-sea_query::sea_query_driver_rusqlite!();
+use sea_query_rusqlite::RusqliteBinder;
 
 pub struct Database {
     connection: Connection,
@@ -86,13 +84,13 @@ impl Database {
                 message.state.unwrap_or(MessageState::Unread).into(),
             ])?
             .returning_all()
-            .build(SqliteQueryBuilder);
+            .build_rusqlite(SqliteQueryBuilder);
 
         let message = self
             .connection
             .query_row(
                 sql.as_str(),
-                RusqliteValues::from(values).as_params().as_slice(),
+                values.as_params().as_slice(),
                 Message::from_row,
             )
             .context("Failed to add message")?;
@@ -106,14 +104,11 @@ impl Database {
             .from(MessageIden::Table)
             .cond_where(filter.get_where())
             .order_by(MessageIden::Timestamp, Order::Desc)
-            .build(SqliteQueryBuilder);
+            .build_rusqlite(SqliteQueryBuilder);
 
         let mut statement = self.connection.prepare(sql.as_str())?;
         let messages = statement
-            .query_map(
-                RusqliteValues::from(values).as_params().as_slice(),
-                Message::from_row,
-            )?
+            .query_map(values.as_params().as_slice(), Message::from_row)?
             .collect::<Result<Vec<Message>, _>>()
             .context("Failed to load messages")?;
         Ok(messages)
@@ -130,16 +125,13 @@ impl Database {
         let (sql, values) = Query::update()
             .table(MessageIden::Table)
             .cond_where(filter.get_where())
-            .value(MessageIden::State, new_state.into())
+            .value::<_, i64>(MessageIden::State, new_state.into())
             .returning_all()
-            .build(SqliteQueryBuilder);
+            .build_rusqlite(SqliteQueryBuilder);
 
         let mut statement = self.connection.prepare(sql.as_str())?;
         let mut messages = statement
-            .query_map(
-                RusqliteValues::from(values).as_params().as_slice(),
-                Message::from_row,
-            )?
+            .query_map(values.as_params().as_slice(), Message::from_row)?
             .collect::<Result<Vec<Message>, _>>()
             .context("Failed to change message states")?;
         // Sort the messages manually since SQLite doesn't support sorting RETURNING results
@@ -153,14 +145,11 @@ impl Database {
             .from_table(MessageIden::Table)
             .returning_all()
             .cond_where(filter.get_where())
-            .build(SqliteQueryBuilder);
+            .build_rusqlite(SqliteQueryBuilder);
 
         let mut statement = self.connection.prepare(sql.as_str())?;
         let mut messages = statement
-            .query_map(
-                RusqliteValues::from(values).as_params().as_slice(),
-                Message::from_row,
-            )?
+            .query_map(values.as_params().as_slice(), Message::from_row)?
             .collect::<Result<Vec<Message>, _>>()
             .context("Failed to clear messages")?;
         // Sort the messages manually since SQLite doesn't support sorting RETURNING results
@@ -178,10 +167,10 @@ impl Database {
             .group_by_col(MessageIden::Mailbox)
             .order_by(MessageIden::Mailbox, Order::Asc)
             .distinct()
-            .build(SqliteQueryBuilder);
+            .build_rusqlite(SqliteQueryBuilder);
         let mut statement = self.connection.prepare(sql.as_str())?;
         let mailboxes = statement
-            .query_map(RusqliteValues::from(values).as_params().as_slice(), |row| {
+            .query_map(values.as_params().as_slice(), |row| {
                 let count: i64 = row.get(1)?;
                 Ok((row.get(0)?, count as usize))
             })?
