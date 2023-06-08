@@ -31,7 +31,7 @@ use message_filter::MessageFilter;
 use message_formatter::MessageFormatter;
 use new_message::NewMessage;
 use std::fs::create_dir_all;
-use std::io::stdin;
+use std::io::{stdin, stdout, IsTerminal};
 use std::path::PathBuf;
 
 // Return the directories where this project stores its data
@@ -80,7 +80,7 @@ fn create_formatter(cli: &Cli) -> MessageFormatter {
     const DEFAULT_WIDTH: usize = 80;
     const DEFAULT_HEIGHT: usize = 8;
 
-    let tty = atty::is(atty::Stream::Stdout);
+    let tty = stdout().is_terminal();
     let truncate = matches!(cli.command, Command::View { full_output, .. } if !full_output);
     let size = if truncate && tty {
         match crossterm::terminal::size() {
