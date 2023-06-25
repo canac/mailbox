@@ -41,11 +41,21 @@ fn get_project_dirs() -> Result<ProjectDirs> {
 }
 
 // Load the database connection, creating the database file's parent directories if necessary
-fn load_database() -> Result<Database> {
-    let project_dirs = get_project_dirs()?;
-    let data_dir = project_dirs.data_local_dir();
-    create_dir_all(data_dir).context("Couldn't create data directory")?;
-    Database::new(Some(data_dir.join("mailbox.db")))
+async fn load_database(config: &Option<Config>) -> Result<Database> {
+    let database = config
+        .as_ref()
+        .map(|config| config.database.clone())
+        .unwrap_or_default();
+    Database::new(match database {
+        config::DatabaseProvider::Sqlite => {
+            let project_dirs = get_project_dirs()?;
+            let data_dir = project_dirs.data_local_dir();
+            create_dir_all(data_dir).context("Couldn't create data directory")?;
+            database::DatabaseEngine::Sqlite(Some(data_dir.join("mailbox.db")))
+        }
+        config::DatabaseProvider::Postgres { url } => database::DatabaseEngine::Postgres(url),
+    })
+    .await
 }
 
 // Return the path of the configuration file, creating its parent directories if necessary
@@ -132,11 +142,13 @@ fn states_from_view_message_state(state: ViewMessageState) -> Vec<MessageState> 
     }
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     // Fix broken pipe panics
     sigpipe::reset();
 
-    let mut db = load_database()?;
+    let config = load_config()?;
+    let mut db = load_database(&config).await?;
     let cli = Cli::parse();
     let formatter = create_formatter(&cli);
 
@@ -159,61 +171,68 @@ fn main() -> Result<()> {
                 content,
                 state: Some(cli_state),
             }];
-            let config = load_config()?;
-            let messages = import_messages(&mut db, &config, raw_messages)?;
+            let messages = import_messages(&mut db, &config, raw_messages).await?;
             print!("{}", formatter.format_messages(&messages)?);
         }
 
         Command::Import { format } => {
-            let config = load_config()?;
             let messages = import_messages(
                 &mut db,
                 &config,
                 read_messages_stdin(stdin().lock(), format),
-            )?;
+            )
+            .await?;
             print!("{}", formatter.format_messages(&messages)?);
         }
 
         Command::View { mailbox, state, .. } => {
-            let messages = db.load_messages(
-                MessageFilter::new()
-                    .with_mailbox_option(mailbox)
-                    .with_states(states_from_view_message_state(state)),
-            )?;
+            let messages = db
+                .load_messages(
+                    MessageFilter::new()
+                        .with_mailbox_option(mailbox)
+                        .with_states(states_from_view_message_state(state)),
+                )
+                .await?;
             print!("{}", formatter.format_messages(&messages)?);
         }
 
         Command::Read { mailbox } => {
-            let messages = db.change_state(
-                MessageFilter::new()
-                    .with_mailbox_option(mailbox)
-                    .with_states(vec![MessageState::Unread]),
-                MessageState::Read,
-            )?;
+            let messages = db
+                .change_state(
+                    MessageFilter::new()
+                        .with_mailbox_option(mailbox)
+                        .with_states(vec![MessageState::Unread]),
+                    MessageState::Read,
+                )
+                .await?;
             print!("{}", formatter.format_messages(&messages)?);
         }
 
         Command::Archive { mailbox } => {
-            let messages = db.change_state(
-                MessageFilter::new()
-                    .with_mailbox_option(mailbox)
-                    .with_states(vec![MessageState::Unread, MessageState::Read]),
-                MessageState::Archived,
-            )?;
+            let messages = db
+                .change_state(
+                    MessageFilter::new()
+                        .with_mailbox_option(mailbox)
+                        .with_states(vec![MessageState::Unread, MessageState::Read]),
+                    MessageState::Archived,
+                )
+                .await?;
             print!("{}", formatter.format_messages(&messages)?);
         }
 
         Command::Clear { mailbox } => {
-            let messages = db.delete_messages(
-                MessageFilter::new()
-                    .with_mailbox_option(mailbox)
-                    .with_states(vec![MessageState::Archived]),
-            )?;
+            let messages = db
+                .delete_messages(
+                    MessageFilter::new()
+                        .with_mailbox_option(mailbox)
+                        .with_states(vec![MessageState::Archived]),
+                )
+                .await?;
             print!("{}", formatter.format_messages(&messages)?);
         }
 
         Command::Tui { mailbox, state } => {
-            crate::tui::run(db, mailbox, states_from_view_message_state(state))?;
+            crate::tui::run(db, mailbox, states_from_view_message_state(state)).await?;
         }
 
         Command::Config { subcommand } => match subcommand {

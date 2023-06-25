@@ -13,11 +13,24 @@ pub enum Override {
     Ignored,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+#[serde(deny_unknown_fields, rename_all = "lowercase", tag = "provider")]
+pub enum DatabaseProvider {
+    #[default]
+    Sqlite,
+    Postgres {
+        url: String,
+    },
+}
+
+#[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(default)]
     overrides: HashMap<String, Override>,
+
+    #[serde(default)]
+    pub database: DatabaseProvider,
 }
 
 impl Config {
@@ -79,6 +92,26 @@ mod tests {
     }
 
     #[test]
+    fn test_load_provider() {
+        assert_eq!(
+            load_config("[database]\nprovider = 'sqlite'\n")
+                .unwrap()
+                .database,
+            DatabaseProvider::Sqlite
+        );
+        assert!(load_config("[database]\nprovider = 'postgres'\n").is_err());
+        assert_eq!(
+            load_config("[database]\nprovider = 'postgres'\nurl = 'postgres://'\n")
+                .unwrap()
+                .database,
+            DatabaseProvider::Postgres {
+                url: String::from("postgres://")
+            }
+        );
+        assert!(load_config("[database]\nprovider = 'foo'\n").is_err());
+    }
+
+    #[test]
     fn test_load_overrides() {
         assert!(load_config("[overrides]\nfoo = 'unread'\n").is_ok());
         assert!(load_config("[overrides]\nfoo = 'bar'\n").is_err());
@@ -102,6 +135,7 @@ mod tests {
                 ("a/b/c".to_string(), Override::Ignored),
                 ("a".to_string(), Override::Read),
             ]),
+            database: Default::default(),
         };
 
         assert!(apply_override(&config, "a/b/c/d").is_none());

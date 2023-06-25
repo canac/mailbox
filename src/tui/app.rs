@@ -1,6 +1,7 @@
 use super::multiselect_list::MultiselectList;
 use super::navigable_list::{Keyed, NavigableList};
 use super::tree_list::{Depth, TreeList};
+use super::worker::{start_worker, WorkerReceiver, WorkerRequest, WorkerResponse, WorkerSender};
 use crate::database::Database;
 use crate::message::{Message, MessageState};
 use crate::message_filter::MessageFilter;
@@ -8,12 +9,14 @@ use anyhow::Result;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
+use std::sync::Arc;
 
 pub enum Pane {
     Mailboxes,
     Messages,
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct Mailbox {
     // The name of the mailbox, including its parents
     pub full_name: String,
@@ -53,23 +56,31 @@ pub struct App {
     pub(crate) messages: MultiselectList<Message>,
     pub(crate) active_pane: Pane,
     pub(crate) active_states: HashSet<MessageState>,
-    db: Database,
+    worker_tx: WorkerSender,
+    worker_rx: WorkerReceiver,
 }
 
 impl App {
-    pub fn new(
+    pub async fn new(
         db: Database,
         initial_mailbox: Option<String>,
         initial_states: Vec<MessageState>,
     ) -> Result<App> {
+        let db = Arc::new(db);
+        let (worker_tx, worker_rx) = start_worker(db.clone());
         let mut app = App {
             active_pane: Pane::Messages,
             mailboxes: TreeList::new(),
             messages: MultiselectList::new(),
             active_states: initial_states.into_iter().collect(),
-            db,
+            worker_tx,
+            worker_rx,
         };
-        app.update_mailboxes()?;
+        app.messages
+            .replace_items(db.load_messages(app.get_display_filter()).await?);
+        app.mailboxes.replace_items(Self::build_mailbox_list(
+            db.load_mailboxes(app.get_display_filter()).await?,
+        ));
         if let Some(mailbox_name) = initial_mailbox {
             app.mailboxes
                 .set_cursor(app.mailboxes.get_items().iter().enumerate().find_map(
@@ -82,7 +93,6 @@ impl App {
                     },
                 ));
         }
-        app.update_messages()?;
         Ok(app)
     }
 
@@ -103,13 +113,10 @@ impl App {
         Ok(())
     }
 
-    // Update the mailboxes list
-    pub fn update_mailboxes(&mut self) -> Result<()> {
+    // Generate the mailboxes list
+    pub(crate) fn build_mailbox_list(mailbox_sizes: Vec<(String, usize)>) -> Vec<Mailbox> {
         let mut mailboxes = HashMap::<String, Mailbox>::new();
-        for (mailbox, count) in self
-            .db
-            .load_mailboxes(MessageFilter::new().with_states(self.get_active_states()))?
-        {
+        for (mailbox, count) in mailbox_sizes.into_iter() {
             let sections = mailbox.split('/').collect::<Vec<_>>();
             for index in 0..sections.len() {
                 // Children mailboxes contribute to the size of their parents
@@ -127,26 +134,38 @@ impl App {
         }
         let mut mailboxes = mailboxes.into_values().collect::<Vec<_>>();
         mailboxes.sort_by(|mailbox1, mailbox2| mailbox1.full_name.cmp(&mailbox2.full_name));
-        self.mailboxes.replace_items(mailboxes);
+        mailboxes
+    }
+
+    // Update the mailboxes list
+    pub fn update_mailboxes(&mut self) -> Result<()> {
+        self.worker_tx.send(WorkerRequest::LoadMailboxes(
+            MessageFilter::new().with_states(self.get_active_states()),
+        ))?;
         Ok(())
     }
 
     // Update the messages list based on the mailbox and other filters
     pub fn update_messages(&mut self) -> Result<()> {
         let filter = self.get_display_filter();
-        self.messages.replace_items(
-            self.db
-                .load_messages(filter)?
-                .into_iter()
-                .map(|message| Message {
-                    id: message.id,
-                    timestamp: message.timestamp,
-                    mailbox: message.mailbox,
-                    content: message.content,
-                    state: message.state,
-                })
-                .collect(),
-        );
+        self.worker_tx.send(WorkerRequest::LoadMessages(filter))?;
+        Ok(())
+    }
+
+    // Handle any pending worker responses without blocking
+    pub fn handle_worker_responses(&mut self) -> Result<()> {
+        while let Ok(res) = self.worker_rx.try_recv() {
+            match res {
+                WorkerResponse::LoadMessages(messages) => self.messages.replace_items(messages),
+                WorkerResponse::LoadMailboxes(mailboxes) => self
+                    .mailboxes
+                    .replace_items(Self::build_mailbox_list(mailboxes)),
+                WorkerResponse::ChangeMessageStates | WorkerResponse::DeleteMessages => {
+                    self.update_mailboxes()?;
+                    self.update_messages()?;
+                }
+            };
+        }
         Ok(())
     }
 
@@ -183,22 +202,128 @@ impl App {
         } else {
             selected_items
         };
-        self.get_display_filter().with_ids(active_ids.into_iter())
+        MessageFilter::new().with_ids(active_ids.into_iter())
     }
 
     // Change the state of all selected messages
     pub fn set_selected_message_states(&mut self, new_state: MessageState) -> Result<()> {
-        self.db.change_state(self.get_action_filter(), new_state)?;
-        self.update_mailboxes()?;
-        self.update_messages()?;
+        let action_filter = self.get_action_filter();
+        self.worker_tx.send(WorkerRequest::ChangeMessageStates {
+            filter: action_filter.clone(),
+            new_state,
+        })?;
+
+        // Optimistically update the messages list
+        let display_filter = self.get_display_filter();
+        self.messages.replace_items(
+            self.messages
+                .get_items()
+                .iter()
+                .cloned()
+                .filter_map(|message| {
+                    if !action_filter.matches_message(&message) {
+                        // This message is not being changed, so keep it
+                        return Some(message);
+                    }
+
+                    let new_message = Message {
+                        state: new_state,
+                        ..message
+                    };
+                    // Filter out the message if it no longer matches the display filter
+                    if display_filter.matches_message(&new_message) {
+                        Some(new_message)
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+        );
+
         Ok(())
     }
 
     // Delete all selected messages
     pub fn delete_selected_messages(&mut self) -> Result<()> {
-        self.db.delete_messages(self.get_action_filter())?;
-        self.update_mailboxes()?;
-        self.update_messages()?;
+        let filter = self.get_action_filter();
+        self.worker_tx
+            .send(WorkerRequest::DeleteMessages(filter.clone()))?;
+
+        // Optimistically update the message list
+        self.messages.replace_items(
+            self.messages
+                .get_items()
+                .iter()
+                .filter(|message| !filter.matches_message(message))
+                .cloned()
+                .collect(),
+        );
+
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_mailbox_list() {
+        let mailboxes = vec![
+            (String::from("a"), 1),
+            (String::from("a/b"), 1),
+            (String::from("c"), 1),
+            (String::from("b"), 1),
+            (String::from("b/d/e"), 1),
+            (String::from("b/c"), 1),
+            (String::from("b/d"), 1),
+        ];
+        assert_eq!(
+            App::build_mailbox_list(mailboxes),
+            vec![
+                Mailbox {
+                    full_name: String::from("a"),
+                    name: String::from("a"),
+                    depth: 0,
+                    message_count: 2,
+                },
+                Mailbox {
+                    full_name: String::from("a/b"),
+                    name: String::from("b"),
+                    depth: 1,
+                    message_count: 1,
+                },
+                Mailbox {
+                    full_name: String::from("b"),
+                    name: String::from("b"),
+                    depth: 0,
+                    message_count: 4,
+                },
+                Mailbox {
+                    full_name: String::from("b/c"),
+                    name: String::from("c"),
+                    depth: 1,
+                    message_count: 1,
+                },
+                Mailbox {
+                    full_name: String::from("b/d"),
+                    name: String::from("d"),
+                    depth: 1,
+                    message_count: 2,
+                },
+                Mailbox {
+                    full_name: String::from("b/d/e"),
+                    name: String::from("e"),
+                    depth: 2,
+                    message_count: 1,
+                },
+                Mailbox {
+                    full_name: String::from("c"),
+                    name: String::from("c"),
+                    depth: 0,
+                    message_count: 1,
+                }
+            ]
+        );
     }
 }

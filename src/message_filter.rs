@@ -1,4 +1,4 @@
-use crate::message::{MessageIden, MessageState};
+use crate::message::{Message, MessageIden, MessageState};
 use sea_query::{Cond, Condition, Expr};
 
 #[derive(Clone)]
@@ -53,18 +53,135 @@ impl MessageFilter {
             .add_option(self.mailbox.map(|mailbox| {
                 Cond::any()
                     .add(Expr::col(MessageIden::Mailbox).eq(mailbox.clone()))
-                    .add(Expr::cust_with_values(
-                        "mailbox GLOB ?",
-                        vec![format!("{mailbox}/*")],
-                    ))
+                    .add(Expr::col(MessageIden::Mailbox).like(format!("{mailbox}/%")))
             }))
             .add_option(self.states.map(|states| {
                 Expr::col(MessageIden::State).is_in(
                     states
                         .iter()
                         .map(|state| (*state).into())
-                        .collect::<Vec<i64>>(),
+                        .collect::<Vec<i32>>(),
                 )
             }))
+    }
+
+    // Determine whether a message matches the filter
+    pub fn matches_message(&self, message: &Message) -> bool {
+        if let Some(ids) = self.ids.as_ref() {
+            if !ids.contains(&message.id) {
+                return false;
+            }
+        }
+        if let Some(mailbox) = self.mailbox.as_ref() {
+            if !(mailbox == &message.mailbox
+                || message.mailbox.starts_with(format!("{mailbox}/").as_str()))
+            {
+                return false;
+            }
+        }
+        if let Some(states) = self.states.as_ref() {
+            if !states.contains(&message.state) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::NaiveDateTime;
+
+    use super::*;
+
+    fn get_message() -> Message {
+        Message {
+            id: 1,
+            timestamp: NaiveDateTime::MIN,
+            mailbox: String::from("parent/child"),
+            content: String::from("Content"),
+            state: MessageState::Unread,
+        }
+    }
+
+    #[test]
+    fn test_matches_message_empty_filter() {
+        let message = get_message();
+        assert_eq!(MessageFilter::new().matches_message(&message), true);
+    }
+
+    #[test]
+    fn test_matches_message_id_filter() {
+        let message = get_message();
+        assert_eq!(
+            MessageFilter::new()
+                .with_ids([1].into_iter())
+                .matches_message(&message),
+            true
+        );
+        assert_eq!(
+            MessageFilter::new()
+                .with_ids([1, 2].into_iter())
+                .matches_message(&message),
+            true
+        );
+        assert_eq!(
+            MessageFilter::new()
+                .with_ids([2].into_iter())
+                .matches_message(&message),
+            false
+        );
+    }
+
+    #[test]
+    fn test_matches_message_mailbox_filter() {
+        let message = get_message();
+        assert_eq!(
+            MessageFilter::new()
+                .with_mailbox("parent")
+                .matches_message(&message),
+            true
+        );
+        assert_eq!(
+            MessageFilter::new()
+                .with_mailbox("parent/child")
+                .matches_message(&message),
+            true
+        );
+        assert_eq!(
+            MessageFilter::new()
+                .with_mailbox("parent/child2")
+                .matches_message(&message),
+            false
+        );
+        assert_eq!(
+            MessageFilter::new()
+                .with_mailbox("parent/child/grandchild")
+                .matches_message(&message),
+            false
+        );
+    }
+
+    #[test]
+    fn test_matches_message_state_filter() {
+        let message = get_message();
+        assert_eq!(
+            MessageFilter::new()
+                .with_states(vec![MessageState::Unread])
+                .matches_message(&message),
+            true
+        );
+        assert_eq!(
+            MessageFilter::new()
+                .with_states(vec![MessageState::Unread, MessageState::Read])
+                .matches_message(&message),
+            true
+        );
+        assert_eq!(
+            MessageFilter::new()
+                .with_states(vec![MessageState::Read])
+                .matches_message(&message),
+            false
+        );
     }
 }

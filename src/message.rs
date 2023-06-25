@@ -1,8 +1,8 @@
 use anyhow::anyhow;
 use clap::ValueEnum;
-use rusqlite::{Result, Row};
 use sea_query::{enum_def, Value};
 use serde::Deserialize;
+use sqlx::{any::AnyRow, FromRow, Row};
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, ValueEnum)]
@@ -27,10 +27,10 @@ impl Display for MessageState {
     }
 }
 
-impl TryFrom<i64> for MessageState {
+impl TryFrom<i32> for MessageState {
     type Error = anyhow::Error;
 
-    fn try_from(value: i64) -> anyhow::Result<Self> {
+    fn try_from(value: i32) -> anyhow::Result<Self> {
         match value {
             0 => Ok(MessageState::Unread),
             1 => Ok(MessageState::Read),
@@ -40,7 +40,7 @@ impl TryFrom<i64> for MessageState {
     }
 }
 
-impl From<MessageState> for i64 {
+impl From<MessageState> for i32 {
     fn from(value: MessageState) -> Self {
         match value {
             MessageState::Unread => 0,
@@ -52,10 +52,11 @@ impl From<MessageState> for i64 {
 
 impl From<MessageState> for Value {
     fn from(value: MessageState) -> Value {
-        Value::BigInt(Some(value.into()))
+        Value::Int(Some(value.into()))
     }
 }
 
+#[derive(Clone)]
 #[enum_def]
 pub struct Message {
     pub id: i32,
@@ -65,14 +66,14 @@ pub struct Message {
     pub state: MessageState,
 }
 
-impl Message {
-    pub fn from_row(row: &Row) -> Result<Message> {
-        Ok(Message {
-            id: row.get(0)?,
-            timestamp: row.get(1)?,
-            mailbox: row.get(2)?,
-            content: row.get(3)?,
-            state: row.get::<_, i64>(4)?.try_into().unwrap(),
+impl FromRow<'_, AnyRow> for Message {
+    fn from_row(row: &AnyRow) -> sqlx::Result<Self> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            timestamp: row.try_get("timestamp")?,
+            mailbox: row.try_get("mailbox")?,
+            content: row.try_get("content")?,
+            state: row.try_get::<i32, _>("state")?.try_into().unwrap(),
         })
     }
 }

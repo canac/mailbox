@@ -236,6 +236,16 @@ $ mailbox add my-script/error/network "Couldn't connect to the internet" --state
 
 You can also run `mailbox config locate` to print the OS-dependent path of the configuration file.
 
+## Using Postgres
+
+By default, messages are stored in a local SQLite database. To use a local or remove Postgres database instead, add the following to your configuration file:
+
+```toml
+[database]
+provider = 'postgres'
+url = 'postgres://postgres@localhost/mailbox' # replace with your Postgres connection URL
+```
+
 ## Mass importing messages
 
 Messages can also be added in bulk. Simply pipe a newline separated list of tab separated message entries to `mailbox import`. The first field is the mailbox, the second field is the content, and the optional third field is the state and must have the value `unread`, `read`, or `archived`.

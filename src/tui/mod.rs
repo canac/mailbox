@@ -1,7 +1,9 @@
 mod app;
 mod multiselect_list;
 mod navigable_list;
+mod request_counter;
 mod tree_list;
+mod worker;
 
 use self::app::{App, Pane};
 use self::multiselect_list::SelectionMode;
@@ -28,7 +30,7 @@ use tui::{
     Frame, Terminal,
 };
 
-pub fn run(
+pub async fn run(
     db: Database,
     initial_mailbox: Option<String>,
     initial_states: Vec<MessageState>,
@@ -41,8 +43,8 @@ pub fn run(
     let mut terminal = Terminal::new(backend)?;
 
     // Create app and run it
-    let tick_rate = Duration::from_millis(250);
-    let app = App::new(db, initial_mailbox, initial_states)?;
+    let tick_rate = Duration::from_millis(30);
+    let app = App::new(db, initial_mailbox, initial_states).await?;
     let res = run_app(&mut terminal, app, tick_rate);
 
     // Restore terminal
@@ -60,6 +62,7 @@ fn run_app<B: Backend>(
 ) -> Result<()> {
     let mut last_tick = Instant::now();
     loop {
+        app.handle_worker_responses()?;
         terminal.draw(|f| ui(f, &mut app))?;
 
         let timeout = tick_rate

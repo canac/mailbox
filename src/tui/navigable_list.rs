@@ -32,16 +32,16 @@ where
     }
 
     // Move the cursor forward by `change` items (backward if `change` is negative)
-    fn move_cursor_relative(&mut self, change: i64) {
+    fn move_cursor_relative(&mut self, change: i32) {
         self.set_cursor(match self.get_items().len() {
             0 => None,
             num_items => {
                 let new_index = (match self.get_cursor() {
                     None => -1,
-                    Some(index) => index as i64,
+                    Some(index) => index as i32,
                 }) + change;
                 // Bounds check the new index
-                Some((new_index).clamp(0, num_items as i64 - 1) as usize)
+                Some((new_index).clamp(0, num_items as i32 - 1) as usize)
             }
         });
     }
