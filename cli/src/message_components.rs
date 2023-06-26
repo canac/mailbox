@@ -1,5 +1,5 @@
 use crate::truncate::truncate_string;
-use database::MessageState;
+use database::State;
 use std::cmp::max;
 use unicode_width::UnicodeWidthStr;
 
@@ -7,7 +7,7 @@ use unicode_width::UnicodeWidthStr;
 // the user. This struct exists to allow message components to be independently
 // truncated when the message gets too long.
 pub struct MessageComponents {
-    pub state: MessageState,
+    pub state: State,
     pub content: String,
     pub mailbox: String,
     pub time: String,

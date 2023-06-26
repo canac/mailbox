@@ -16,7 +16,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use database::{Database, Message, MessageState};
+use database::{Database, Message, State};
 use linkify::{LinkFinder, LinkKind};
 use std::io;
 use std::time::{Duration, Instant};
@@ -33,7 +33,7 @@ use tui::{
 pub async fn run(
     db: Database,
     initial_mailbox: Option<String>,
-    initial_states: Vec<MessageState>,
+    initial_states: Vec<State>,
 ) -> Result<()> {
     // Setup terminal
     enable_raw_mode()?;
@@ -93,9 +93,9 @@ fn handle_global_key(app: &mut App, key: KeyEvent) -> Result<()> {
     match key.code {
         KeyCode::Char('1') => app.activate_pane(Pane::Mailboxes),
         KeyCode::Char('2') => app.activate_pane(Pane::Messages),
-        KeyCode::Char('u') if control => app.toggle_active_state(MessageState::Unread)?,
-        KeyCode::Char('r') if control => app.toggle_active_state(MessageState::Read)?,
-        KeyCode::Char('a') if control => app.toggle_active_state(MessageState::Archived)?,
+        KeyCode::Char('u') if control => app.toggle_active_state(State::Unread)?,
+        KeyCode::Char('r') if control => app.toggle_active_state(State::Read)?,
+        KeyCode::Char('a') if control => app.toggle_active_state(State::Archived)?,
         _ => {}
     }
 
@@ -165,10 +165,10 @@ fn handle_message_key(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Char('K') => app.messages.first(),
         KeyCode::Esc => app.messages.remove_cursor(),
         KeyCode::Char(' ') => app.messages.toggle_cursor_selected(),
-        KeyCode::Char('u') if !control => app.set_selected_message_states(MessageState::Unread)?,
-        KeyCode::Char('r') if !control => app.set_selected_message_states(MessageState::Read)?,
+        KeyCode::Char('u') if !control => app.set_selected_message_states(State::Unread)?,
+        KeyCode::Char('r') if !control => app.set_selected_message_states(State::Read)?,
         KeyCode::Char('a') if !control => {
-            app.set_selected_message_states(MessageState::Archived)?;
+            app.set_selected_message_states(State::Archived)?;
         }
         KeyCode::Char('x') if control => app.delete_selected_messages()?,
         KeyCode::Enter => {
@@ -215,7 +215,7 @@ fn render_footer<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) {
         Span::raw(" "),
         Span::styled(
             " unread ",
-            if app.active_states.contains(&MessageState::Unread) {
+            if app.active_states.contains(&State::Unread) {
                 active_style
             } else {
                 inactive_style
@@ -224,7 +224,7 @@ fn render_footer<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) {
         Span::raw(" "),
         Span::styled(
             " read ",
-            if app.active_states.contains(&MessageState::Read) {
+            if app.active_states.contains(&State::Read) {
                 active_style
             } else {
                 inactive_style
@@ -233,7 +233,7 @@ fn render_footer<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) {
         Span::raw(" "),
         Span::styled(
             " archived ",
-            if app.active_states.contains(&MessageState::Archived) {
+            if app.active_states.contains(&State::Archived) {
                 active_style
             } else {
                 inactive_style
@@ -308,12 +308,12 @@ fn render_messages<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) 
                 Span::raw("  ")
             };
             let state_marker = match message.state {
-                MessageState::Unread => Span::styled(
+                State::Unread => Span::styled(
                     "* ",
                     Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 ),
-                MessageState::Read => Span::raw("  "),
-                MessageState::Archived => Span::raw("- "),
+                State::Read => Span::raw("  "),
+                State::Archived => Span::raw("- "),
             };
             let timestamp = HumanTime::from(
                 message

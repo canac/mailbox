@@ -1,9 +1,9 @@
 use super::multiselect_list::MultiselectList;
 use super::navigable_list::{Keyed, NavigableList};
 use super::tree_list::{Depth, TreeList};
-use super::worker::{start_worker, WorkerReceiver, WorkerRequest, WorkerResponse, WorkerSender};
+use super::worker::{spawn, Receiver, Request, Response, Sender};
 use anyhow::Result;
-use database::{Database, Message, MessageFilter, MessageState};
+use database::{Database, Message, MessageFilter, State};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
@@ -53,19 +53,19 @@ pub struct App {
     pub(crate) mailboxes: TreeList<Mailbox>,
     pub(crate) messages: MultiselectList<Message>,
     pub(crate) active_pane: Pane,
-    pub(crate) active_states: HashSet<MessageState>,
-    worker_tx: WorkerSender,
-    worker_rx: WorkerReceiver,
+    pub(crate) active_states: HashSet<State>,
+    worker_tx: Sender,
+    worker_rx: Receiver,
 }
 
 impl App {
     pub async fn new(
         db: Database,
         initial_mailbox: Option<String>,
-        initial_states: Vec<MessageState>,
+        initial_states: Vec<State>,
     ) -> Result<App> {
         let db = Arc::new(db);
-        let (worker_tx, worker_rx) = start_worker(db.clone());
+        let (worker_tx, worker_rx) = spawn(db.clone());
         let mut app = App {
             active_pane: Pane::Messages,
             mailboxes: TreeList::new(),
@@ -100,7 +100,7 @@ impl App {
     }
 
     // Toggle whether a message state is active
-    pub fn toggle_active_state(&mut self, state: MessageState) -> Result<()> {
+    pub fn toggle_active_state(&mut self, state: State) -> Result<()> {
         if self.active_states.contains(&state) {
             self.active_states.remove(&state);
         } else {
@@ -114,7 +114,7 @@ impl App {
     // Generate the mailboxes list
     pub(crate) fn build_mailbox_list(mailbox_sizes: Vec<(String, usize)>) -> Vec<Mailbox> {
         let mut mailboxes = HashMap::<String, Mailbox>::new();
-        for (mailbox, count) in mailbox_sizes.into_iter() {
+        for (mailbox, count) in mailbox_sizes {
             let sections = mailbox.split('/').collect::<Vec<_>>();
             for index in 0..sections.len() {
                 // Children mailboxes contribute to the size of their parents
@@ -137,7 +137,7 @@ impl App {
 
     // Update the mailboxes list
     pub fn update_mailboxes(&mut self) -> Result<()> {
-        self.worker_tx.send(WorkerRequest::LoadMailboxes(
+        self.worker_tx.send(Request::LoadMailboxes(
             MessageFilter::new().with_states(self.get_active_states()),
         ))?;
         Ok(())
@@ -146,7 +146,7 @@ impl App {
     // Update the messages list based on the mailbox and other filters
     pub fn update_messages(&mut self) -> Result<()> {
         let filter = self.get_display_filter();
-        self.worker_tx.send(WorkerRequest::LoadMessages(filter))?;
+        self.worker_tx.send(Request::LoadMessages(filter))?;
         Ok(())
     }
 
@@ -154,11 +154,11 @@ impl App {
     pub fn handle_worker_responses(&mut self) -> Result<()> {
         while let Ok(res) = self.worker_rx.try_recv() {
             match res {
-                WorkerResponse::LoadMessages(messages) => self.messages.replace_items(messages),
-                WorkerResponse::LoadMailboxes(mailboxes) => self
+                Response::LoadMessages(messages) => self.messages.replace_items(messages),
+                Response::LoadMailboxes(mailboxes) => self
                     .mailboxes
                     .replace_items(Self::build_mailbox_list(mailboxes)),
-                WorkerResponse::ChangeMessageStates | WorkerResponse::DeleteMessages => {
+                Response::ChangeMessageStates | Response::DeleteMessages => {
                     self.update_mailboxes()?;
                     self.update_messages()?;
                 }
@@ -168,7 +168,7 @@ impl App {
     }
 
     // Return a vector of the active states
-    fn get_active_states(&self) -> Vec<MessageState> {
+    fn get_active_states(&self) -> Vec<State> {
         self.active_states.iter().copied().collect()
     }
 
@@ -204,9 +204,9 @@ impl App {
     }
 
     // Change the state of all selected messages
-    pub fn set_selected_message_states(&mut self, new_state: MessageState) -> Result<()> {
+    pub fn set_selected_message_states(&mut self, new_state: State) -> Result<()> {
         let action_filter = self.get_action_filter();
-        self.worker_tx.send(WorkerRequest::ChangeMessageStates {
+        self.worker_tx.send(Request::ChangeMessageStates {
             filter: action_filter.clone(),
             new_state,
         })?;
@@ -245,7 +245,7 @@ impl App {
     pub fn delete_selected_messages(&mut self) -> Result<()> {
         let filter = self.get_action_filter();
         self.worker_tx
-            .send(WorkerRequest::DeleteMessages(filter.clone()))?;
+            .send(Request::DeleteMessages(filter.clone()))?;
 
         // Optimistically update the message list
         self.messages.replace_items(

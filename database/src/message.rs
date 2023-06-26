@@ -6,51 +6,51 @@ use std::fmt::{self, Display, Formatter};
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum MessageState {
+pub enum State {
     Unread,
     Read,
     Archived,
 }
 
-impl Display for MessageState {
+impl Display for State {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                MessageState::Unread => "*",
-                MessageState::Read => " ",
-                MessageState::Archived => "-",
+                State::Unread => "*",
+                State::Read => " ",
+                State::Archived => "-",
             }
         )
     }
 }
 
-impl TryFrom<i32> for MessageState {
+impl TryFrom<i32> for State {
     type Error = anyhow::Error;
 
     fn try_from(value: i32) -> anyhow::Result<Self> {
         match value {
-            0 => Ok(MessageState::Unread),
-            1 => Ok(MessageState::Read),
-            2 => Ok(MessageState::Archived),
+            0 => Ok(State::Unread),
+            1 => Ok(State::Read),
+            2 => Ok(State::Archived),
             _ => Err(anyhow!("Invalid message state {}", value)),
         }
     }
 }
 
-impl From<MessageState> for i32 {
-    fn from(value: MessageState) -> Self {
+impl From<State> for i32 {
+    fn from(value: State) -> Self {
         match value {
-            MessageState::Unread => 0,
-            MessageState::Read => 1,
-            MessageState::Archived => 2,
+            State::Unread => 0,
+            State::Read => 1,
+            State::Archived => 2,
         }
     }
 }
 
-impl From<MessageState> for Value {
-    fn from(value: MessageState) -> Value {
+impl From<State> for Value {
+    fn from(value: State) -> Value {
         Value::Int(Some(value.into()))
     }
 }
@@ -62,7 +62,7 @@ pub struct Message {
     pub timestamp: chrono::NaiveDateTime,
     pub mailbox: String,
     pub content: String,
-    pub state: MessageState,
+    pub state: State,
 }
 
 impl FromRow<'_, AnyRow> for Message {

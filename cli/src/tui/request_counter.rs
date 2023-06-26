@@ -30,7 +30,7 @@ impl RequestCounter {
 
     // Check whether the opaque request id is the latest or whether another request holding fresher
     // data is already in progress
-    pub fn is_latest(&self, req_id: RequestId) -> bool {
+    pub fn is_latest(&self, req_id: &RequestId) -> bool {
         self.next_id.load(Ordering::SeqCst) == req_id.0 + 1
     }
 }
@@ -50,7 +50,7 @@ mod tests {
         let req_counter = RequestCounter::new();
         let req_1 = req_counter.next();
         let req_2 = req_counter.next();
-        assert_eq!(req_counter.is_latest(req_1), false);
-        assert_eq!(req_counter.is_latest(req_2), true);
+        assert_eq!(req_counter.is_latest(&req_1), false);
+        assert_eq!(req_counter.is_latest(&req_2), true);
     }
 }

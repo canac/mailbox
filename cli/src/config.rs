@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use database::{MessageState, NewMessage};
+use database::{NewMessage, State};
 use serde::Deserialize;
 use std::{collections::HashMap, io::ErrorKind, path::PathBuf};
 
@@ -58,9 +58,9 @@ impl Config {
     pub fn apply_override(&self, message: NewMessage) -> Option<NewMessage> {
         let overridden_state = self.get_override(&message.mailbox);
         let state = match overridden_state {
-            Some(Override::Unread) => Some(MessageState::Unread),
-            Some(Override::Read) => Some(MessageState::Read),
-            Some(Override::Archived) => Some(MessageState::Archived),
+            Some(Override::Unread) => Some(State::Unread),
+            Some(Override::Read) => Some(State::Read),
+            Some(Override::Archived) => Some(State::Archived),
             // Skip this message entirely
             Some(Override::Ignored) => return None,
             None => message.state,
@@ -81,7 +81,7 @@ mod tests {
         config.apply_override(NewMessage {
             mailbox: mailbox.to_string(),
             content: "Content".to_string(),
-            state: Some(MessageState::Unread),
+            state: Some(State::Unread),
         })
     }
 
@@ -141,15 +141,15 @@ mod tests {
         assert!(apply_override(&config, "a/b/c").is_none());
         assert_eq!(
             apply_override(&config, "a/b").unwrap().state,
-            Some(MessageState::Read)
+            Some(State::Read)
         );
         assert_eq!(
             apply_override(&config, "a").unwrap().state,
-            Some(MessageState::Read)
+            Some(State::Read)
         );
         assert_eq!(
             apply_override(&config, "b").unwrap().state,
-            Some(MessageState::Unread)
+            Some(State::Unread)
         );
     }
 }

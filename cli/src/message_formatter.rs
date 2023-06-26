@@ -4,7 +4,7 @@ use crate::truncate::TruncatedLine;
 use anyhow::{anyhow, Result};
 use chrono::{Local, TimeZone, Utc};
 use chrono_humanize::HumanTime;
-use database::{Message, MessageState};
+use database::{Message, State};
 use std::collections::HashMap;
 
 enum Word {
@@ -134,7 +134,7 @@ impl MessageFormatter {
         let mut line = TruncatedLine::new(max_columns);
         line.append(
             components.state.to_string(),
-            if matches!(message.state, MessageState::Unread) && self.color {
+            if matches!(message.state, State::Unread) && self.color {
                 Some(|str: &str| str.red().bold())
             } else {
                 None
@@ -313,7 +313,7 @@ mod tests {
                 .unwrap(),
             mailbox: mailbox.into(),
             content: content.into(),
-            state: MessageState::Unread,
+            state: State::Unread,
         }
     }
 

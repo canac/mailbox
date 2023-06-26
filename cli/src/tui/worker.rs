@@ -1,36 +1,36 @@
 use super::request_counter::RequestCounter;
-use database::{Database, Message, MessageFilter, MessageState};
-use std::sync::mpsc::{channel, Receiver, Sender};
+use database::{Database, Message, MessageFilter, State};
+use std::sync::mpsc::{self, channel};
 use std::sync::Arc;
 use std::thread;
 use tokio::runtime::Handle;
 
-pub enum WorkerRequest {
+pub enum Request {
     LoadMessages(MessageFilter),
     LoadMailboxes(MessageFilter),
     ChangeMessageStates {
         filter: MessageFilter,
-        new_state: MessageState,
+        new_state: State,
     },
     DeleteMessages(MessageFilter),
 }
 
-pub enum WorkerResponse {
+pub enum Response {
     LoadMessages(Vec<Message>),
     LoadMailboxes(Vec<(String, usize)>),
     ChangeMessageStates,
     DeleteMessages,
 }
 
-pub type WorkerSender = Sender<WorkerRequest>;
-pub type WorkerReceiver = Receiver<WorkerResponse>;
+pub type Sender = mpsc::Sender<Request>;
+pub type Receiver = mpsc::Receiver<Response>;
 
 // Spawn an worker for asynchronously interacting with the database
 // It receives requests from a channel, runs the corresponding database query asynchronously,
 // and when the response is ready, sends it on another channel
-pub fn start_worker(db: Arc<Database>) -> (WorkerSender, WorkerReceiver) {
-    let (tx_req, rx_req) = channel::<WorkerRequest>();
-    let (tx_res, rx_res) = channel::<WorkerResponse>();
+pub fn spawn(db: Arc<Database>) -> (Sender, Receiver) {
+    let (tx_req, rx_req) = channel::<Request>();
+    let (tx_res, rx_res) = channel::<Response>();
 
     let handle = Handle::current();
     let message_req_counter = RequestCounter::new();
@@ -43,31 +43,29 @@ pub fn start_worker(db: Arc<Database>) -> (WorkerSender, WorkerReceiver) {
         let mailbox_req_counter = mailbox_req_counter.clone();
         handle.spawn(async move {
             match req {
-                WorkerRequest::LoadMessages(filter) => {
+                Request::LoadMessages(filter) => {
                     let req_id = message_req_counter.next();
                     let messages = db.load_messages(filter).await.unwrap();
                     // Only use these messages if there aren't any fresher load requests in progress
-                    if message_req_counter.is_latest(req_id) {
-                        tx_res.send(WorkerResponse::LoadMessages(messages)).unwrap();
+                    if message_req_counter.is_latest(&req_id) {
+                        tx_res.send(Response::LoadMessages(messages)).unwrap();
                     }
                 }
-                WorkerRequest::LoadMailboxes(filter) => {
+                Request::LoadMailboxes(filter) => {
                     let req_id = mailbox_req_counter.next();
                     let mailboxes = db.load_mailboxes(filter).await.unwrap();
                     // Only use these mailboxes if there aren't any fresher load requests in progress
-                    if mailbox_req_counter.is_latest(req_id) {
-                        tx_res
-                            .send(WorkerResponse::LoadMailboxes(mailboxes))
-                            .unwrap();
+                    if mailbox_req_counter.is_latest(&req_id) {
+                        tx_res.send(Response::LoadMailboxes(mailboxes)).unwrap();
                     }
                 }
-                WorkerRequest::ChangeMessageStates { filter, new_state } => {
+                Request::ChangeMessageStates { filter, new_state } => {
                     db.change_state(filter, new_state).await.unwrap();
-                    tx_res.send(WorkerResponse::ChangeMessageStates).unwrap();
+                    tx_res.send(Response::ChangeMessageStates).unwrap();
                 }
-                WorkerRequest::DeleteMessages(filter) => {
+                Request::DeleteMessages(filter) => {
                     db.delete_messages(filter).await.unwrap();
-                    tx_res.send(WorkerResponse::DeleteMessages).unwrap();
+                    tx_res.send(Response::DeleteMessages).unwrap();
                 }
             }
         });

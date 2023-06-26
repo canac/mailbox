@@ -57,6 +57,7 @@ where
 }
 
 // Add multiple messages to the database
+#[allow(clippy::module_name_repetitions)]
 pub async fn import_messages(
     db: &mut Database,
     config: &Option<Config>,
@@ -75,7 +76,7 @@ pub async fn import_messages(
 
 #[cfg(test)]
 mod tests {
-    use database::MessageState;
+    use database::State;
 
     use super::*;
 
@@ -100,7 +101,7 @@ mod tests {
                 NewMessage {
                     mailbox: "foo".to_string(),
                     content: "bar".to_string(),
-                    state: Some(MessageState::Read)
+                    state: Some(State::Read)
                 }
             ]
         );
@@ -123,7 +124,7 @@ mod tests {
                 NewMessage {
                     mailbox: "foo".to_string(),
                     content: "bar".to_string(),
-                    state: Some(MessageState::Read)
+                    state: Some(State::Read)
                 }
             ]
         );

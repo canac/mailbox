@@ -1,8 +1,8 @@
-#![warn(clippy::pedantic)]
+#![deny(clippy::pedantic)]
 #![allow(
     clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::module_name_repetitions
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss
 )]
 
 mod cli;
@@ -19,7 +19,7 @@ use crate::import::read_messages_stdin;
 use anyhow::{bail, Context, Result};
 use clap::Parser;
 use cli::{ConfigSubcommand, ViewMessageState};
-use database::{Database, MessageFilter, MessageState, NewMessage};
+use database::{Database, MessageFilter, NewMessage, State};
 use directories::ProjectDirs;
 use import::import_messages;
 use message_formatter::MessageFormatter;
@@ -44,9 +44,9 @@ async fn load_database(config: &Option<Config>) -> Result<Database> {
             let project_dirs = get_project_dirs()?;
             let data_dir = project_dirs.data_local_dir();
             create_dir_all(data_dir).context("Couldn't create data directory")?;
-            database::DatabaseEngine::Sqlite(Some(data_dir.join("mailbox.db")))
+            database::Engine::Sqlite(Some(data_dir.join("mailbox.db")))
         }
-        config::DatabaseProvider::Postgres { url } => database::DatabaseEngine::Postgres(url),
+        config::DatabaseProvider::Postgres { url } => database::Engine::Postgres(url),
     })
     .await
 }
@@ -119,19 +119,15 @@ fn create_formatter(cli: &Cli) -> MessageFormatter {
 }
 
 // Convert a ViewMessageState into the list of states that it represents
-fn states_from_view_message_state(state: ViewMessageState) -> Vec<MessageState> {
+fn states_from_view_message_state(state: ViewMessageState) -> Vec<State> {
     match state {
-        ViewMessageState::Unread => vec![MessageState::Unread],
-        ViewMessageState::Read => vec![MessageState::Read],
-        ViewMessageState::Archived => vec![MessageState::Archived],
+        ViewMessageState::Unread => vec![State::Unread],
+        ViewMessageState::Read => vec![State::Read],
+        ViewMessageState::Archived => vec![State::Archived],
         ViewMessageState::Unarchived => {
-            vec![MessageState::Unread, MessageState::Read]
+            vec![State::Unread, State::Read]
         }
-        ViewMessageState::All => vec![
-            MessageState::Unread,
-            MessageState::Read,
-            MessageState::Archived,
-        ],
+        ViewMessageState::All => vec![State::Unread, State::Read, State::Archived],
     }
 }
 
@@ -155,9 +151,9 @@ async fn main() -> Result<()> {
             state,
         } => {
             let cli_state = match state {
-                AddMessageState::Unread => MessageState::Unread,
-                AddMessageState::Read => MessageState::Read,
-                AddMessageState::Archived => MessageState::Archived,
+                AddMessageState::Unread => State::Unread,
+                AddMessageState::Read => State::Read,
+                AddMessageState::Archived => State::Archived,
             };
             let raw_messages = vec![NewMessage {
                 mailbox,
@@ -194,8 +190,8 @@ async fn main() -> Result<()> {
                 .change_state(
                     MessageFilter::new()
                         .with_mailbox_option(mailbox)
-                        .with_states(vec![MessageState::Unread]),
-                    MessageState::Read,
+                        .with_states(vec![State::Unread]),
+                    State::Read,
                 )
                 .await?;
             print!("{}", formatter.format_messages(&messages)?);
@@ -206,8 +202,8 @@ async fn main() -> Result<()> {
                 .change_state(
                     MessageFilter::new()
                         .with_mailbox_option(mailbox)
-                        .with_states(vec![MessageState::Unread, MessageState::Read]),
-                    MessageState::Archived,
+                        .with_states(vec![State::Unread, State::Read]),
+                    State::Archived,
                 )
                 .await?;
             print!("{}", formatter.format_messages(&messages)?);
@@ -218,7 +214,7 @@ async fn main() -> Result<()> {
                 .delete_messages(
                     MessageFilter::new()
                         .with_mailbox_option(mailbox)
-                        .with_states(vec![MessageState::Archived]),
+                        .with_states(vec![State::Archived]),
                 )
                 .await?;
             print!("{}", formatter.format_messages(&messages)?);

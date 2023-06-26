@@ -1,4 +1,4 @@
-use crate::message::MessageState;
+use crate::message::State;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
@@ -6,5 +6,5 @@ use serde::Deserialize;
 pub struct NewMessage {
     pub mailbox: String,
     pub content: String,
-    pub state: Option<MessageState>,
+    pub state: Option<State>,
 }

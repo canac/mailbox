@@ -1,4 +1,4 @@
-use crate::message::{Message, MessageIden, MessageState};
+use crate::message::{Message, MessageIden, State};
 use crate::message_filter::MessageFilter;
 use crate::new_message::NewMessage;
 use anyhow::{anyhow, bail, Context, Result};
@@ -10,7 +10,7 @@ use sea_query_binder::SqlxBinder;
 use sqlx::{query, AnyPool, Row};
 use std::path::PathBuf;
 
-pub enum DatabaseEngine {
+pub enum Engine {
     Sqlite(Option<PathBuf>),
     Postgres(String),
 }
@@ -24,14 +24,14 @@ pub struct Database {
 impl Database {
     // Create a new Database instance
     // An in-memory database is used if a database path isn't provided
-    pub async fn new(engine: DatabaseEngine) -> Result<Self> {
+    pub async fn new(engine: Engine) -> Result<Self> {
         let (url, sqlite, schema_builder, query_builder): (
             String,
             bool,
             Box<dyn SchemaBuilder + Send + Sync>,
             Box<dyn QueryBuilder + Send + Sync>,
         ) = match engine {
-            DatabaseEngine::Sqlite(db_path) => {
+            Engine::Sqlite(db_path) => {
                 let path = match db_path.as_deref() {
                     Some(path) => path
                         .to_str()
@@ -45,7 +45,7 @@ impl Database {
                     Box::new(SqliteQueryBuilder {}),
                 )
             }
-            DatabaseEngine::Postgres(url) => (
+            Engine::Postgres(url) => (
                 url,
                 false,
                 Box::new(PostgresQueryBuilder {}),
@@ -129,7 +129,7 @@ impl Database {
             .values(vec![
                 message.mailbox.into(),
                 message.content.into(),
-                message.state.unwrap_or(MessageState::Unread).into(),
+                message.state.unwrap_or(State::Unread).into(),
             ])?
             .returning_all()
             .build_any_sqlx(&*self.query_builder);
@@ -163,7 +163,7 @@ impl Database {
     pub async fn change_state(
         &self,
         filter: MessageFilter,
-        new_state: MessageState,
+        new_state: State,
     ) -> Result<Vec<Message>> {
         let (sql, values) = Query::update()
             .table(MessageIden::Table)
@@ -262,7 +262,7 @@ mod tests {
         db: &Database,
         mailbox: &str,
         content: &str,
-        state: Option<MessageState>,
+        state: Option<State>,
     ) -> Result<()> {
         db.add_message(NewMessage {
             mailbox: mailbox.to_string(),
@@ -274,25 +274,25 @@ mod tests {
     }
 
     async fn get_populated_db() -> Result<Database> {
-        let db = Database::new(DatabaseEngine::Sqlite(None)).await?;
-        add_message(&db, "unread", "unread1", Some(MessageState::Unread)).await?;
-        add_message(&db, "unread", "unread2", Some(MessageState::Unread)).await?;
-        add_message(&db, "read", "read1", Some(MessageState::Read)).await?;
-        add_message(&db, "read", "read2", Some(MessageState::Read)).await?;
-        add_message(&db, "read", "read3", Some(MessageState::Read)).await?;
-        add_message(&db, "archived", "archive1", Some(MessageState::Archived)).await?;
+        let db = Database::new(Engine::Sqlite(None)).await?;
+        add_message(&db, "unread", "unread1", Some(State::Unread)).await?;
+        add_message(&db, "unread", "unread2", Some(State::Unread)).await?;
+        add_message(&db, "read", "read1", Some(State::Read)).await?;
+        add_message(&db, "read", "read2", Some(State::Read)).await?;
+        add_message(&db, "read", "read3", Some(State::Read)).await?;
+        add_message(&db, "archived", "archive1", Some(State::Archived)).await?;
         Ok(db)
     }
 
     #[tokio::test]
     async fn test_create() -> Result<()> {
-        Database::new(DatabaseEngine::Sqlite(None)).await?;
+        Database::new(Engine::Sqlite(None)).await?;
         Ok(())
     }
 
     #[tokio::test]
     async fn test_add() -> Result<()> {
-        let db = Database::new(DatabaseEngine::Sqlite(None)).await?;
+        let db = Database::new(Engine::Sqlite(None)).await?;
         add_message(&db, "mailbox1", "message1", None).await?;
         add_message(&db, "mailbox2", "message2", None).await?;
         add_message(&db, "mailbox1", "message3", None).await?;
@@ -319,7 +319,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_invalid() -> Result<()> {
-        let db = Database::new(DatabaseEngine::Sqlite(None)).await?;
+        let db = Database::new(Engine::Sqlite(None)).await?;
         assert!(add_message(&db, "mailbox", "", None).await.is_err());
         assert!(add_message(&db, "", "message", None).await.is_err());
         assert!(add_message(&db, "mailbox/", "message", None).await.is_err());
@@ -355,11 +355,9 @@ mod tests {
     async fn test_load_with_states_filter() -> Result<()> {
         let db = get_populated_db().await?;
         assert_eq!(
-            db.load_messages(
-                MessageFilter::new().with_states(vec![MessageState::Read, MessageState::Archived])
-            )
-            .await?
-            .len(),
+            db.load_messages(MessageFilter::new().with_states(vec![State::Read, State::Archived]))
+                .await?
+                .len(),
             4
         );
         Ok(())
@@ -399,12 +397,12 @@ mod tests {
     async fn test_read() -> Result<()> {
         let db = get_populated_db().await?;
         db.change_state(
-            MessageFilter::new().with_states(vec![MessageState::Unread]),
-            MessageState::Read,
+            MessageFilter::new().with_states(vec![State::Unread]),
+            State::Read,
         )
         .await?;
         assert_eq!(
-            db.load_messages(MessageFilter::new().with_states(vec![MessageState::Read]))
+            db.load_messages(MessageFilter::new().with_states(vec![State::Read]))
                 .await?
                 .len(),
             5
@@ -416,12 +414,12 @@ mod tests {
     async fn test_archive() -> Result<()> {
         let db = get_populated_db().await?;
         db.change_state(
-            MessageFilter::new().with_states(vec![MessageState::Unread, MessageState::Read]),
-            MessageState::Archived,
+            MessageFilter::new().with_states(vec![State::Unread, State::Read]),
+            State::Archived,
         )
         .await?;
         assert_eq!(
-            db.load_messages(MessageFilter::new().with_states(vec![MessageState::Archived]))
+            db.load_messages(MessageFilter::new().with_states(vec![State::Archived]))
                 .await?
                 .len(),
             6
@@ -432,10 +430,8 @@ mod tests {
     #[tokio::test]
     async fn test_delete() -> Result<()> {
         let db = get_populated_db().await?;
-        db.delete_messages(
-            MessageFilter::new().with_states(vec![MessageState::Unread, MessageState::Read]),
-        )
-        .await?;
+        db.delete_messages(MessageFilter::new().with_states(vec![State::Unread, State::Read]))
+            .await?;
         assert_eq!(db.load_messages(MessageFilter::new()).await?.len(), 1);
         Ok(())
     }
@@ -458,7 +454,7 @@ mod tests {
     async fn test_load_mailboxes_with_filter() -> Result<()> {
         let db = get_populated_db().await?;
         assert_eq!(
-            db.load_mailboxes(MessageFilter::new().with_states(vec![MessageState::Unread]))
+            db.load_mailboxes(MessageFilter::new().with_states(vec![State::Unread]))
                 .await?,
             vec![(String::from("unread"), 2)]
         );

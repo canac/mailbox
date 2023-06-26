@@ -1,11 +1,12 @@
-use crate::message::{Message, MessageIden, MessageState};
+use crate::message::{Message, MessageIden, State};
 use sea_query::{Cond, Condition, Expr};
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
+#[must_use]
 pub struct MessageFilter {
     ids: Option<Vec<i32>>,
     mailbox: Option<String>,
-    states: Option<Vec<MessageState>>,
+    states: Option<Vec<State>>,
 }
 
 // MessageFilter is a consistent interface for filtering messages in Database methods.
@@ -13,11 +14,7 @@ pub struct MessageFilter {
 impl MessageFilter {
     // Create a new message filter
     pub fn new() -> Self {
-        MessageFilter {
-            mailbox: None,
-            states: None,
-            ids: None,
-        }
+        MessageFilter::default()
     }
 
     // Add a mailbox filter
@@ -35,7 +32,7 @@ impl MessageFilter {
     }
 
     // Add a states filter
-    pub fn with_states(mut self, states: Vec<MessageState>) -> Self {
+    pub fn with_states(mut self, states: Vec<State>) -> Self {
         self.states = Some(states);
         self
     }
@@ -47,6 +44,7 @@ impl MessageFilter {
     }
 
     // Generate a sea-query where expression message filter
+    #[must_use]
     pub fn get_where(self) -> Condition {
         Cond::all()
             .add_option(self.ids.map(|ids| Expr::col(MessageIden::Id).is_in(ids)))
@@ -66,6 +64,7 @@ impl MessageFilter {
     }
 
     // Determine whether a message matches the filter
+    #[must_use]
     pub fn matches_message(&self, message: &Message) -> bool {
         if let Some(ids) = self.ids.as_ref() {
             if !ids.contains(&message.id) {
@@ -84,7 +83,7 @@ impl MessageFilter {
                 return false;
             }
         }
-        return true;
+        true
     }
 }
 
@@ -100,7 +99,7 @@ mod tests {
             timestamp: NaiveDateTime::MIN,
             mailbox: String::from("parent/child"),
             content: String::from("Content"),
-            state: MessageState::Unread,
+            state: State::Unread,
         }
     }
 
@@ -167,19 +166,19 @@ mod tests {
         let message = get_message();
         assert_eq!(
             MessageFilter::new()
-                .with_states(vec![MessageState::Unread])
+                .with_states(vec![State::Unread])
                 .matches_message(&message),
             true
         );
         assert_eq!(
             MessageFilter::new()
-                .with_states(vec![MessageState::Unread, MessageState::Read])
+                .with_states(vec![State::Unread, State::Read])
                 .matches_message(&message),
             true
         );
         assert_eq!(
             MessageFilter::new()
-                .with_states(vec![MessageState::Read])
+                .with_states(vec![State::Read])
                 .matches_message(&message),
             false
         );
