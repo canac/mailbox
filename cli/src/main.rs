@@ -7,29 +7,22 @@
 
 mod cli;
 mod config;
-mod database;
 mod import;
-mod message;
 mod message_components;
-mod message_filter;
 mod message_formatter;
-mod new_message;
 mod truncate;
 mod tui;
 
 use crate::cli::{AddMessageState, Cli, Command, TimestampFormat};
 use crate::config::Config;
-use crate::database::Database;
 use crate::import::read_messages_stdin;
-use crate::message::MessageState;
 use anyhow::{bail, Context, Result};
 use clap::Parser;
 use cli::{ConfigSubcommand, ViewMessageState};
+use database::{Database, MessageFilter, MessageState, NewMessage};
 use directories::ProjectDirs;
 use import::import_messages;
-use message_filter::MessageFilter;
 use message_formatter::MessageFormatter;
-use new_message::NewMessage;
 use std::fs::create_dir_all;
 use std::io::{stdin, stdout, IsTerminal};
 use std::path::PathBuf;

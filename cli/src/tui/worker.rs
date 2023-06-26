@@ -1,7 +1,5 @@
 use super::request_counter::RequestCounter;
-use crate::database::Database;
-use crate::message::{Message, MessageState};
-use crate::message_filter::MessageFilter;
+use database::{Database, Message, MessageFilter, MessageState};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread;

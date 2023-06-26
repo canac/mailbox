@@ -1,11 +1,10 @@
 use anyhow::anyhow;
-use clap::ValueEnum;
 use sea_query::{enum_def, Value};
 use serde::Deserialize;
 use sqlx::{any::AnyRow, FromRow, Row};
 use std::fmt::{self, Display, Formatter};
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, ValueEnum)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum MessageState {
     Unread,

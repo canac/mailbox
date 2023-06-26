@@ -8,7 +8,6 @@ mod worker;
 use self::app::{App, Pane};
 use self::multiselect_list::SelectionMode;
 use self::navigable_list::NavigableList;
-use crate::{database::Database, message::MessageState};
 use anyhow::Result;
 use chrono::Utc;
 use chrono_humanize::HumanTime;
@@ -17,6 +16,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use database::{Database, Message, MessageState};
 use linkify::{LinkFinder, LinkKind};
 use std::io;
 use std::time::{Duration, Instant};
@@ -359,7 +359,7 @@ fn render_messages<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) 
 }
 
 // If the message contains a URL, open it in a web browser
-fn open_message(message: &crate::message::Message) {
+fn open_message(message: &Message) {
     let mut finder = LinkFinder::new();
     finder.kinds(&[LinkKind::Url]);
 

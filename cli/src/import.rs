@@ -1,10 +1,8 @@
 use crate::cli::ImportMessageFormat;
 use crate::config::Config;
-use crate::database::Database;
-use crate::message::Message;
-use crate::new_message::NewMessage;
 use anyhow::{Context, Result};
 use csv::ReaderBuilder;
+use database::{Database, Message, NewMessage};
 use futures::future::try_join_all;
 
 // Import messages from stdin lines
@@ -77,7 +75,7 @@ pub async fn import_messages(
 
 #[cfg(test)]
 mod tests {
-    use crate::message::MessageState;
+    use database::MessageState;
 
     use super::*;
 

@@ -1,4 +1,4 @@
 .DS_Store
-/contrib
-/man
+/cli/contrib
+/cli/man
 /target

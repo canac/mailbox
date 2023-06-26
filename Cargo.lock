@@ -501,6 +501,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "database"
+version = "0.6.1"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "sea-query",
+ "sea-query-binder",
+ "serde",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1021,15 +1034,13 @@ dependencies = [
  "colored",
  "crossterm 0.26.1",
  "csv",
+ "database",
  "directories",
  "futures",
  "linkify",
- "sea-query",
- "sea-query-binder",
  "serde",
  "serde_json",
  "sigpipe",
- "sqlx",
  "tokio",
  "toml",
  "tui",

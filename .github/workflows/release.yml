@@ -55,7 +55,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --locked --target=${{ matrix.target }} --color=always --verbose
+          args: --release --locked --bin=mailbox --target=${{ matrix.target }} --color=always --verbose
           use-cross: ${{ runner.os == 'Linux' }}
 
       - name: Package (*nix)
@@ -63,8 +63,8 @@ jobs:
         run: >
           tar -cv
           LICENSE README.md
-          man/
-          -C contrib/ completions/ -C ../
+          cli/man/
+          -C cli/contrib/ completions/ -C ../../
           -C target/${{ matrix.target }}/release/ mailbox
           | gzip --best > '${{ env.ARTIFACT_NAME }}.tar.gz'
       - name: Package (Windows)
@@ -72,8 +72,8 @@ jobs:
         run: >
           7z a ${{ env.ARTIFACT_NAME }}.zip
           LICENSE README.md
-          ./man/
-          ./contrib/completions/
+          ./cli/man/
+          ./cli/contrib/completions/
           ./target/${{ matrix.target }}/release/mailbox.exe
 
       - name: Upload artifact

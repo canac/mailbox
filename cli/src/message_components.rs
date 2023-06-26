@@ -1,5 +1,5 @@
-use crate::message::MessageState;
 use crate::truncate::truncate_string;
+use database::MessageState;
 use std::cmp::max;
 use unicode_width::UnicodeWidthStr;
 

@@ -1,6 +1,5 @@
-use crate::message::MessageState;
-use crate::new_message::NewMessage;
 use anyhow::{Context, Result};
+use database::{MessageState, NewMessage};
 use serde::Deserialize;
 use std::{collections::HashMap, io::ErrorKind, path::PathBuf};
 
