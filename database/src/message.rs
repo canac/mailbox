@@ -55,10 +55,12 @@ impl From<State> for Value {
     }
 }
 
+pub type Id = i32;
+
 #[derive(Clone)]
 #[enum_def]
 pub struct Message {
-    pub id: i32,
+    pub id: Id,
     pub timestamp: chrono::NaiveDateTime,
     pub mailbox: String,
     pub content: String,

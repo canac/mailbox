@@ -1,10 +1,10 @@
-use crate::message::{Message, MessageIden, State};
+use crate::message::{Id, Message, MessageIden, State};
 use sea_query::{Cond, Condition, Expr};
 
 #[derive(Clone, Default)]
 #[must_use]
 pub struct MessageFilter {
-    ids: Option<Vec<i32>>,
+    ids: Option<Vec<Id>>,
     mailbox: Option<String>,
     states: Option<Vec<State>>,
 }
@@ -38,7 +38,7 @@ impl MessageFilter {
     }
 
     // Add IDs to a filter
-    pub fn with_ids(mut self, ids: impl Iterator<Item = i32>) -> Self {
+    pub fn with_ids(mut self, ids: impl Iterator<Item = Id>) -> Self {
         self.ids = Some(ids.collect());
         self
     }
