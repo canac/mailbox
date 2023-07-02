@@ -1,10 +1,10 @@
 use anyhow::anyhow;
 use sea_query::{enum_def, Value};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{any::AnyRow, FromRow, Row};
 use std::fmt::{self, Display, Formatter};
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum State {
     Unread,
@@ -57,7 +57,7 @@ impl From<State> for Value {
 
 pub type Id = i32;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 #[enum_def]
 pub struct Message {
     pub id: Id,

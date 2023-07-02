@@ -1,7 +1,12 @@
 [package]
 name = "database"
-version = "0.6.1"
-edition = "2021"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+description = "Database for mailbox messages"
+readme = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
 
 [dependencies]
 anyhow = { workspace = true }

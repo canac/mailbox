@@ -1,0 +1,20 @@
+[package]
+name = "http_server"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+description = "HTTP server for mailbox messages"
+readme = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+
+[dependencies]
+actix-web = "4.3.1"
+anyhow = { workspace = true }
+database = { path = "../database" }
+futures = { workspace = true }
+serde = { workspace = true }
+shuttle-actix-web = "0.20.0"
+shuttle-runtime = "0.20.0"
+shuttle-secrets = "0.20.0"
+tokio = { workspace = true }

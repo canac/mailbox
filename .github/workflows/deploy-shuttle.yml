@@ -1,0 +1,16 @@
+name: Deploy server to Shuttle
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: printf "'AUTH_TOKEN' = '${{ secrets.AUTH_TOKEN }}'\n'DATABASE_URL' = '${{ secrets.DATABASE_URL }}'\n" http_server > http_server/Secrets.toml
+      - uses: shuttle-hq/deploy-action@v0.0.3
+        with:
+          deploy-key: ${{ secrets.SHUTTLE_DEPLOY_KEY }}
+          working-directory: http_server

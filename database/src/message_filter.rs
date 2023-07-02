@@ -1,7 +1,8 @@
 use crate::message::{Id, Message, MessageIden, State};
 use sea_query::{Cond, Condition, Expr};
+use serde::Deserialize;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Deserialize)]
 #[must_use]
 pub struct MessageFilter {
     ids: Option<Vec<Id>>,
@@ -63,6 +64,12 @@ impl MessageFilter {
             }))
     }
 
+    // Determine whether a message filter is unrestricted and matches all messages
+    #[must_use]
+    pub fn matches_all(&self) -> bool {
+        self.ids.is_none() && self.mailbox.is_none() && self.states.is_none()
+    }
+
     // Determine whether a message matches the filter
     #[must_use]
     pub fn matches_message(&self, message: &Message) -> bool {
@@ -101,6 +108,25 @@ mod tests {
             content: String::from("Content"),
             state: State::Unread,
         }
+    }
+
+    #[test]
+    fn test_matches_all() {
+        assert_eq!(MessageFilter::new().matches_all(), true);
+        assert_eq!(
+            MessageFilter::new().with_ids([1].into_iter()).matches_all(),
+            false
+        );
+        assert_eq!(
+            MessageFilter::new().with_mailbox("foo").matches_all(),
+            false
+        );
+        assert_eq!(
+            MessageFilter::new()
+                .with_states(vec![State::Unread])
+                .matches_all(),
+            false
+        );
     }
 
     #[test]

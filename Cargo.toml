@@ -2,10 +2,21 @@
 members = [
   "cli",
   "database",
+  "http_server",
 ]
+
+[workspace.package]
+version = "0.6.1"
+authors = ["Caleb Cox"]
+edition = "2021"
+description = "Message manager for output from local and remote scripts"
+readme = "README.md"
+repository = "https://github.com/canac/mailbox"
+license = "MIT"
 
 [workspace.dependencies]
 anyhow = "1.0.70"
 chrono = { version = "0.4.24", default-features = false, features = ["serde"] }
+futures = "0.3.28"
 serde = { version = "1.0.160", features = ["derive"] }
 tokio = { version = "1.28.2", features = ["macros"] }

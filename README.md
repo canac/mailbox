@@ -1,13 +1,19 @@
 # mailbox
 
-`mailbox` is a CLI tool that scripts and other commands can use to asynchronously deliver messages to the user. All messages are created locally by local commands and stored locally. It is most useful for use in scripts that run in the background on a schedule. For example, a daily online backup script could create messages for the status of the backup. Or a web scraper could create messages when it finds information of interest.
+`mailbox` is a message manager for output from local and remote scripts. To illustrate, when you run a backup script directly in your terminal you can see the output and status code immediately in stdout/stderr. However, if you run that script daily on a schedule via cron, you need another way to see whether it succeeded and get other feedback. You could write the output to a log file but then you need to repeatedly check it for updates and keep track of which log messages are new. That is where `mailbox` comes in. You can configure the backup script to add a mailbox message about how many files were backed or whether the command failed. You can then asynchronously review these messages at your convenience as they arrive. `mailbox` also lets you organize messages into mailboxes and keep track of which messages have been read already. You can even integrate `mailbox` with your shell prompt to be quickly notified in your terminal of any new, unread messages.
+
+`mailbox` can be used in a variety of ways.
+
+1. **Local database**: `mailbox` can store its messages in a local SQLite database. Local commands and scripts can add messages through a CLI interface. You can then use that CLI to review and manipulate messages. This approach is the most performant when all messages are created and viewed on the same machine.
+2. **Remote database**: `mailbox` can also store its messages in a remote Postgres database. Local commands and scripts can still add messages through a CLI interface, and you can still use that CLI to review and manipulate messages. This approach is most useful if you have two or more machines and want to be able to create messages from any machine that can be reviewed from either machine.
+3. **REST interface**: `mailbox` also includes an [HTTP server](https://github.com/canac/mailbox/tree/main/http_server). It connects to a Postgres database using the same internal library as the CLI. Other systems can add and manipulate messages through a REST API. This could be useful if you want code that runs in the cloud to be able to create messages via a simple HTTP request. This REST API could also be used in the future to create a web GUI interface for `mailbox` to complement the terminal-based UI in the CLI. The API is documented fully [here](https://github.com/canac/mailbox/tree/main/http_server/README.md).
 
 ## Installation
 
 Install `mailbox` via Homebrew.
 
 ```sh
-brew install canac/tap/mailbox
+$ brew install canac/tap/mailbox
 ```
 
 ## Adding a message
@@ -181,6 +187,21 @@ format = "${custom.mailbox}$all"
 [custom.mailbox]
 # Count the number of unread messages, and display the count if there are any
 command = 'export count=$(mailbox view | wc -l) && test $count -gt 0 && echo $count'
+when = true
+format = '[($output )](bold yellow)'
+shell = ['bash', '--noprofile', '--norc']
+```
+
+If you are using a remote Postgres database, you might want to cache the output of `mailbox view` to keep updating the prompt quick. You can use a tool like [`bkt`](https://github.com/dimo414/bkt) to achieve that.
+
+```toml
+# Put the mailbox notifications before all other modules
+format = "${custom.mailbox}$all"
+
+[custom.mailbox]
+# Count the number of unread messages, and display the count if there are any
+# Keep cached results for one day and update the message count in the background every minute
+command = 'export count=$(bkt --ttl=1d --stale=1m -- mailbox view | wc -l) && test $count -gt 0 && echo $count'
 when = true
 format = '[($output )](bold yellow)'
 shell = ['bash', '--noprofile', '--norc']
