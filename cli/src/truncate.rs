@@ -228,14 +228,14 @@ mod tests {
     fn test_truncate_string() {
         let message = "Hello, world!";
         assert_eq!(truncate_string(message, 0), (String::new(), 0));
-        assert_eq!(truncate_string(message, 6), ("Hello…".to_string(), 6));
+        assert_eq!(truncate_string(message, 6), (String::from("Hello…"), 6));
         assert_eq!(
             truncate_string(message, 13),
-            ("Hello, world!".to_string(), 13)
+            (String::from("Hello, world!"), 13)
         );
         assert_eq!(
             truncate_string(message, 20),
-            ("Hello, world!".to_string(), 13)
+            (String::from("Hello, world!"), 13)
         );
     }
 
@@ -243,15 +243,15 @@ mod tests {
     fn test_truncate_string_unicode() {
         let message = "⭐a⭐b⭐c⭐";
         assert_eq!(truncate_string(message, 0), (String::new(), 0));
-        assert_eq!(truncate_string(message, 5), ("⭐a…".to_string(), 4));
-        assert_eq!(truncate_string(message, 6), ("⭐a⭐…".to_string(), 6));
+        assert_eq!(truncate_string(message, 5), (String::from("⭐a…"), 4));
+        assert_eq!(truncate_string(message, 6), (String::from("⭐a⭐…"), 6));
         assert_eq!(
             truncate_string(message, 11),
-            ("⭐a⭐b⭐c⭐".to_string(), 11)
+            (String::from("⭐a⭐b⭐c⭐"), 11)
         );
         assert_eq!(
             truncate_string(message, 20),
-            ("⭐a⭐b⭐c⭐".to_string(), 11)
+            (String::from("⭐a⭐b⭐c⭐"), 11)
         );
     }
 }

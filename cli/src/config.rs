@@ -80,7 +80,7 @@ mod tests {
     fn apply_override(config: &Config, mailbox: &str) -> Option<NewMessage> {
         config.apply_override(NewMessage {
             mailbox: mailbox.to_string(),
-            content: "Content".to_string(),
+            content: String::from("Content"),
             state: Some(State::Unread),
         })
     }
@@ -131,8 +131,8 @@ mod tests {
     fn test_apply_override() {
         let config = Config {
             overrides: HashMap::from([
-                ("a/b/c".to_string(), Override::Ignored),
-                ("a".to_string(), Override::Read),
+                (String::from("a/b/c"), Override::Ignored),
+                (String::from("a"), Override::Read),
             ]),
             database: Default::default(),
         };

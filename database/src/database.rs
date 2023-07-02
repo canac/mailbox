@@ -92,20 +92,20 @@ impl Database {
                 ColumnDef::new(MessageIden::Mailbox)
                     .string()
                     .not_null()
-                    .extra("CHECK (LENGTH(mailbox) > 0)".to_string()),
+                    .extra(String::from("CHECK (LENGTH(mailbox) > 0)")),
             )
             .col(
                 ColumnDef::new(MessageIden::Content)
                     .string()
                     .not_null()
-                    .extra("CHECK (LENGTH(content) > 0)".to_string()),
+                    .extra(String::from("CHECK (LENGTH(content) > 0)")),
             )
             .col(
                 ColumnDef::new(MessageIden::State)
                     .integer()
                     .not_null()
                     .default(Value::Int(Some(0)))
-                    .extra("CHECK (state >= 0 AND state <= 2)".to_string()),
+                    .extra(String::from("CHECK (state >= 0 AND state <= 2)")),
             )
             .build_any(&*self.schema_builder);
         query(&sql)

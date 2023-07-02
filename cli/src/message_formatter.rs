@@ -376,7 +376,7 @@ mod tests {
                         "Lorem ipsum dolor sit amet, consectetur adipiscing elit",
                         0
                     ),
-                    Some(" appendix".to_string())
+                    Some(String::from(" appendix"))
                 )
                 .unwrap()
                 .as_str(),
@@ -395,7 +395,7 @@ mod tests {
                         "a",
                         0
                     ),
-                    Some(" appendix".to_string())
+                    Some(String::from(" appendix"))
                 )
                 .unwrap()
                 .as_str(),
@@ -414,7 +414,7 @@ mod tests {
                         "Lorem ipsum dolor sit amet, consectetur adipiscing elit",
                         0
                     ),
-                    Some(" appendix".to_string())
+                    Some(String::from(" appendix"))
                 )
                 .unwrap()
                 .as_str(),
@@ -431,7 +431,7 @@ mod tests {
                     "really-really-really-really-really-really-really-really-long",
                     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
                     0
-                ), Some("appendix".to_string())).unwrap()
+                ), Some(String::from("appendix"))).unwrap()
                 .as_str(),
             "* Lor… [rea…] @ 202…"
         );
