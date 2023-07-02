@@ -39,8 +39,8 @@ impl MessageFilter {
     }
 
     // Add IDs to a filter
-    pub fn with_ids(mut self, ids: impl Iterator<Item = Id>) -> Self {
-        self.ids = Some(ids.collect());
+    pub fn with_ids(mut self, ids: Vec<Id>) -> Self {
+        self.ids = Some(ids);
         self
     }
 
@@ -113,10 +113,7 @@ mod tests {
     #[test]
     fn test_matches_all() {
         assert_eq!(MessageFilter::new().matches_all(), true);
-        assert_eq!(
-            MessageFilter::new().with_ids([1].into_iter()).matches_all(),
-            false
-        );
+        assert_eq!(MessageFilter::new().with_ids(vec![1]).matches_all(), false);
         assert_eq!(
             MessageFilter::new().with_mailbox("foo").matches_all(),
             false
@@ -140,19 +137,19 @@ mod tests {
         let message = get_message();
         assert_eq!(
             MessageFilter::new()
-                .with_ids([1].into_iter())
+                .with_ids(vec![1])
                 .matches_message(&message),
             true
         );
         assert_eq!(
             MessageFilter::new()
-                .with_ids([1, 2].into_iter())
+                .with_ids(vec![1, 2])
                 .matches_message(&message),
             true
         );
         assert_eq!(
             MessageFilter::new()
-                .with_ids([2].into_iter())
+                .with_ids(vec![2])
                 .matches_message(&message),
             false
         );

@@ -21,8 +21,7 @@ impl TryFrom<Filter> for MessageFilter {
             message_filter = message_filter.with_ids(
                 ids.split(',')
                     .map(|id| id.parse().context("Failed to parse ids"))
-                    .collect::<Result<Vec<_>>>()?
-                    .into_iter(),
+                    .collect::<Result<Vec<_>>>()?,
             );
         }
         if let Some(mailbox) = value.mailbox.as_ref() {

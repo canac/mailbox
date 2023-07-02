@@ -200,7 +200,7 @@ impl App {
         } else {
             selected_items
         };
-        MessageFilter::new().with_ids(active_ids.into_iter())
+        MessageFilter::new().with_ids(active_ids)
     }
 
     // Change the state of all selected messages
