@@ -128,15 +128,8 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_override() {
-        let config = Config {
-            overrides: HashMap::from([
-                (String::from("a/b/c"), Override::Ignored),
-                (String::from("a"), Override::Read),
-            ]),
-            database: Default::default(),
-        };
-
+    fn test_apply_override() -> Result<()> {
+        let config = load_config("[overrides]\n'a/b/c' = 'ignored'\n'a' = 'read'")?;
         assert!(apply_override(&config, "a/b/c/d").is_none());
         assert!(apply_override(&config, "a/b/c").is_none());
         assert_eq!(
@@ -151,5 +144,6 @@ mod tests {
             apply_override(&config, "b").unwrap().state,
             Some(State::Unread)
         );
+        Ok(())
     }
 }
