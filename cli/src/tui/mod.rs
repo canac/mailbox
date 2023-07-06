@@ -93,6 +93,10 @@ fn handle_global_key(app: &mut App, key: KeyEvent) -> Result<()> {
     match key.code {
         KeyCode::Char('1') => app.activate_pane(Pane::Mailboxes),
         KeyCode::Char('2') => app.activate_pane(Pane::Messages),
+        KeyCode::Char('R') => {
+            app.update_mailboxes()?;
+            app.update_messages()?;
+        }
         KeyCode::Char('u') if control => app.toggle_active_state(State::Unread)?,
         KeyCode::Char('r') if control => app.toggle_active_state(State::Read)?,
         KeyCode::Char('a') if control => app.toggle_active_state(State::Archived)?,

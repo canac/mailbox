@@ -160,7 +160,6 @@ impl App {
                     .replace_items(Self::build_mailbox_list(mailboxes)),
                 Response::ChangeMessageStates | Response::DeleteMessages => {
                     self.update_mailboxes()?;
-                    self.update_messages()?;
                 }
             };
         }
@@ -211,7 +210,7 @@ impl App {
             new_state,
         })?;
 
-        // Optimistically update the messages list
+        // Update the messages list
         let display_filter = self.get_display_filter();
         self.messages.replace_items(
             self.messages
@@ -247,7 +246,7 @@ impl App {
         self.worker_tx
             .send(Request::DeleteMessages(filter.clone()))?;
 
-        // Optimistically update the message list
+        // Update the message list
         self.messages.replace_items(
             self.messages
                 .get_items()
