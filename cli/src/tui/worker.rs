@@ -1,4 +1,4 @@
-use super::request_counter::RequestCounter;
+use super::monotonic_counter::MonotonicCounter;
 use database::{Database, Message, MessageFilter, State};
 use std::sync::mpsc::{self, channel};
 use std::sync::Arc;
@@ -33,29 +33,29 @@ pub fn spawn(db: Arc<Database>) -> (Sender, Receiver) {
     let (tx_res, rx_res) = channel::<Response>();
 
     let handle = Handle::current();
-    let message_req_counter = RequestCounter::new();
-    let mailbox_req_counter = RequestCounter::new();
+    let message_counter = MonotonicCounter::new();
+    let mailbox_counter = MonotonicCounter::new();
     thread::spawn(move || loop {
         let Ok(req) = rx_req.recv() else { break };
         let tx_res = tx_res.clone();
         let db: Arc<Database> = db.clone();
-        let message_req_counter = message_req_counter.clone();
-        let mailbox_req_counter = mailbox_req_counter.clone();
+        let message_counter = message_counter.clone();
+        let mailbox_counter = mailbox_counter.clone();
         handle.spawn(async move {
             match req {
                 Request::LoadMessages(filter) => {
-                    let req_id = message_req_counter.next();
+                    let req_id = message_counter.next();
                     let messages = db.load_messages(filter).await.unwrap();
                     // Only use these messages if there aren't any fresher load requests in progress
-                    if message_req_counter.is_latest(&req_id) {
+                    if message_counter.last() == req_id {
                         tx_res.send(Response::LoadMessages(messages)).unwrap();
                     }
                 }
                 Request::LoadMailboxes(filter) => {
-                    let req_id = mailbox_req_counter.next();
+                    let req_id = mailbox_counter.next();
                     let mailboxes = db.load_mailboxes(filter).await.unwrap();
                     // Only use these mailboxes if there aren't any fresher load requests in progress
-                    if mailbox_req_counter.is_latest(&req_id) {
+                    if mailbox_counter.last() == req_id {
                         tx_res.send(Response::LoadMailboxes(mailboxes)).unwrap();
                     }
                 }
