@@ -7,8 +7,12 @@ use sea_query::{
     SchemaBuilder, SqliteQueryBuilder, Table, Value,
 };
 use sea_query_binder::SqlxBinder;
+use sqlx::any::AnyConnectOptions;
+use sqlx::postgres::PgConnectOptions;
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
 use sqlx::{query, AnyPool, Row};
 use std::path::PathBuf;
+use std::str::FromStr;
 
 pub enum Engine {
     Sqlite(Option<PathBuf>),
@@ -25,9 +29,8 @@ impl Database {
     // Create a new Database instance
     // An in-memory database is used if a database path isn't provided
     pub async fn new(engine: Engine) -> Result<Self> {
-        let (url, sqlite, schema_builder, query_builder): (
-            String,
-            bool,
+        let (options, schema_builder, query_builder): (
+            AnyConnectOptions,
             Box<dyn SchemaBuilder + Send + Sync>,
             Box<dyn QueryBuilder + Send + Sync>,
         ) = match engine {
@@ -39,29 +42,27 @@ impl Database {
                     None => ":memory:",
                 };
                 (
-                    format!("sqlite:{path}"),
-                    true,
+                    SqliteConnectOptions::from_str(path)
+                        .context("Failed to parse SQLite database path")?
+                        .journal_mode(SqliteJournalMode::Wal)
+                        .create_if_missing(true)
+                        .into(),
                     Box::new(SqliteQueryBuilder {}),
                     Box::new(SqliteQueryBuilder {}),
                 )
             }
             Engine::Postgres(url) => (
-                url,
-                false,
+                PgConnectOptions::from_str(url.as_str())
+                    .context("Failed to parse PostgreSQL connection URL")?
+                    .into(),
                 Box::new(PostgresQueryBuilder {}),
                 Box::new(PostgresQueryBuilder {}),
             ),
         };
 
-        let pool = AnyPool::connect(url.as_str())
+        let pool = AnyPool::connect_with(options)
             .await
             .context("Failed to open database")?;
-        if sqlite {
-            query("PRAGMA journal_mode = WAL")
-                .execute(&pool)
-                .await
-                .context("Failed to execute pragma")?;
-        }
         let db = Database {
             pool,
             schema_builder,
