@@ -1,3 +1,4 @@
+use crate::mailbox::Mailbox;
 use crate::message::{Message, MessageIden, State};
 use crate::message_filter::MessageFilter;
 use crate::new_message::NewMessage;
@@ -200,7 +201,7 @@ impl Database {
     }
 
     // Load the names of all used mailboxes
-    pub async fn load_mailboxes(&self, filter: MessageFilter) -> Result<Vec<(String, usize)>> {
+    pub async fn load_mailboxes(&self, filter: MessageFilter) -> Result<Vec<(Mailbox, usize)>> {
         let (sql, values) = Query::select()
             .from(MessageIden::Table)
             .column(MessageIden::Mailbox)
@@ -219,7 +220,7 @@ impl Database {
             .map(|row| {
                 let mailbox: String = row.try_get("mailbox")?;
                 let count: i64 = row.try_get("count")?;
-                Ok((mailbox, count as usize))
+                Ok((mailbox.try_into()?, count as usize))
             })
             .collect::<Result<Vec<_>>>()?;
         Ok(mailboxes)
@@ -229,24 +230,6 @@ impl Database {
     fn validate_message(message: &NewMessage) -> Result<()> {
         if message.content.is_empty() {
             bail!("content must not be empty");
-        }
-        if message.mailbox.is_empty() {
-            bail!("mailbox must not be empty");
-        }
-        if message.mailbox.starts_with('/') {
-            bail!("mailbox must not start with /");
-        }
-        if message.mailbox.ends_with('/') {
-            bail!("mailbox must not end with /");
-        }
-        if message.mailbox.contains("//") {
-            bail!("mailbox must not contain //");
-        }
-        if message.mailbox.contains('*') {
-            bail!("mailbox must not contain *");
-        }
-        if message.mailbox.contains('?') {
-            bail!("mailbox must not contain ?");
         }
 
         Ok(())
@@ -266,7 +249,7 @@ mod tests {
         state: Option<State>,
     ) -> Result<()> {
         db.add_message(NewMessage {
-            mailbox: mailbox.to_string(),
+            mailbox: mailbox.try_into()?,
             content: content.to_string(),
             state,
         })
@@ -300,18 +283,18 @@ mod tests {
         assert_eq!(db.load_messages(MessageFilter::new()).await?.len(), 3);
 
         let messages = db
-            .load_messages(MessageFilter::new().with_mailbox("mailbox1"))
+            .load_messages(MessageFilter::new().with_mailbox("mailbox1".try_into()?))
             .await?;
-        assert_eq!(messages[0].mailbox, "mailbox1");
+        assert_eq!(messages[0].mailbox.as_ref(), "mailbox1");
         assert_eq!(messages[0].content, "message1");
-        assert_eq!(messages[1].mailbox, "mailbox1");
+        assert_eq!(messages[1].mailbox.as_ref(), "mailbox1");
         assert_eq!(messages[1].content, "message3");
         assert_eq!(messages.len(), 2);
 
         let messages = db
-            .load_messages(MessageFilter::new().with_mailbox("mailbox2"))
+            .load_messages(MessageFilter::new().with_mailbox("mailbox2".try_into()?))
             .await?;
-        assert_eq!(messages[0].mailbox, "mailbox2");
+        assert_eq!(messages[0].mailbox.as_ref(), "mailbox2");
         assert_eq!(messages[0].content, "message2");
         assert_eq!(messages.len(), 1);
 
@@ -328,8 +311,7 @@ mod tests {
         assert!(add_message(&db, "parent//child", "message", None)
             .await
             .is_err());
-        assert!(add_message(&db, "parent/*", "message", None).await.is_err());
-        assert!(add_message(&db, "parent/?", "message", None).await.is_err());
+        assert!(add_message(&db, "parent/%", "message", None).await.is_err());
         Ok(())
     }
 
@@ -344,7 +326,7 @@ mod tests {
     async fn test_load_with_mailbox_filter() -> Result<()> {
         let db = get_populated_db().await?;
         assert_eq!(
-            db.load_messages(MessageFilter::new().with_mailbox("unread"))
+            db.load_messages(MessageFilter::new().with_mailbox("unread".try_into()?))
                 .await?
                 .len(),
             2
@@ -374,19 +356,19 @@ mod tests {
         add_message(&db, "a/b/c", "message", None).await?;
         add_message(&db, "a/c/b", "message", None).await?;
         assert_eq!(
-            db.load_messages(MessageFilter::new().with_mailbox("a"))
+            db.load_messages(MessageFilter::new().with_mailbox("a".try_into()?))
                 .await?
                 .len(),
             5
         );
         assert_eq!(
-            db.load_messages(MessageFilter::new().with_mailbox("a/b"))
+            db.load_messages(MessageFilter::new().with_mailbox("a/b".try_into()?))
                 .await?
                 .len(),
             2
         );
         assert_eq!(
-            db.load_messages(MessageFilter::new().with_mailbox("a/b/c"))
+            db.load_messages(MessageFilter::new().with_mailbox("a/b/c".try_into()?))
                 .await?
                 .len(),
             1
@@ -443,9 +425,9 @@ mod tests {
         assert_eq!(
             db.load_mailboxes(MessageFilter::new()).await?,
             vec![
-                (String::from("archived"), 1),
-                (String::from("read"), 3),
-                (String::from("unread"), 2),
+                ("archived".try_into()?, 1),
+                ("read".try_into()?, 3),
+                ("unread".try_into()?, 2),
             ]
         );
         Ok(())
@@ -457,7 +439,7 @@ mod tests {
         assert_eq!(
             db.load_mailboxes(MessageFilter::new().with_states(vec![State::Unread]))
                 .await?,
-            vec![(String::from("unread"), 2)]
+            vec![("unread".try_into()?, 2)]
         );
         Ok(())
     }

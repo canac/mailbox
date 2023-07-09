@@ -14,7 +14,7 @@ enum Word {
 
 struct Mailbox<'messages> {
     // The name of the mailbox
-    name: &'messages String,
+    name: &'messages database::Mailbox,
 
     // The messages in the mailbox, sorted in the order they will be displayed
     // Will never be empty
@@ -30,7 +30,7 @@ struct Mailbox<'messages> {
 impl<'messages> Mailbox<'messages> {
     // Create a new mailbox containing the provided messages
     // Will panic if messages is an empty vector
-    fn new(name: &'messages String, messages: Vec<&'messages Message>) -> Self {
+    fn new(name: &'messages database::Mailbox, messages: Vec<&'messages Message>) -> Self {
         let mut messages = messages;
 
         // Sort the messages with newest ones first, then alphabetically by mailbox name
@@ -125,7 +125,7 @@ impl MessageFormatter {
         let components = MessageComponents {
             state: message.state,
             content: message.content.clone(),
-            mailbox: message.mailbox.clone(),
+            mailbox: message.mailbox.clone().into(),
             time: time.ok_or_else(|| anyhow!("Could not determine timestamp"))?,
             appendix: appendix.unwrap_or_default(),
         }
@@ -166,7 +166,7 @@ impl MessageFormatter {
     // Format multiple messages into a string. There will be a newline at the end.
     pub fn format_messages(&self, messages: &[Message]) -> Result<String> {
         // Group the messages by mailbox
-        let mut mailboxes: HashMap<&String, Vec<&Message>> = HashMap::new();
+        let mut mailboxes: HashMap<&database::Mailbox, Vec<&Message>> = HashMap::new();
         for message in messages {
             let key = &message.mailbox;
             if let Some(value) = mailboxes.get_mut(key) {
@@ -311,7 +311,7 @@ mod tests {
             id: 1,
             timestamp: NaiveDateTime::from_timestamp_opt(1_640_995_200 + timestamp_offset, 0)
                 .unwrap(),
-            mailbox: mailbox.into(),
+            mailbox: mailbox.try_into().unwrap(),
             content: content.into(),
             state: State::Unread,
         }

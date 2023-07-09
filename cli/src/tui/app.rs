@@ -16,16 +16,13 @@ pub enum Pane {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Mailbox {
-    // The name of the mailbox, including its parents
-    pub full_name: String,
-
-    // The name of the mailbox, excluding its parents
-    pub name: String,
+    // The name of the mailbox
+    pub mailbox: database::Mailbox,
 
     // Root mailbox = 0, child mailbox = 1, grandchild mailbox = 2
     pub depth: usize,
 
-    // The number of messages in the mailbox and it's children
+    // The number of messages in the mailbox and its children
     pub message_count: usize,
 }
 
@@ -38,7 +35,7 @@ impl Depth for Mailbox {
 impl Keyed for Mailbox {
     fn get_key(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
-        hasher.write(self.full_name.as_bytes());
+        hasher.write(self.mailbox.as_ref().as_bytes());
         hasher.finish()
     }
 }
@@ -61,7 +58,7 @@ pub struct App {
 impl App {
     pub async fn new(
         db: Database,
-        initial_mailbox: Option<String>,
+        initial_mailbox: Option<database::Mailbox>,
         initial_states: Vec<State>,
     ) -> Result<App> {
         let db = Arc::new(db);
@@ -79,11 +76,11 @@ impl App {
         app.mailboxes.replace_items(Self::build_mailbox_list(
             db.load_mailboxes(app.get_display_filter()).await?,
         ));
-        if let Some(mailbox_name) = initial_mailbox {
+        if let Some(initial_mailbox) = initial_mailbox {
             app.mailboxes
                 .set_cursor(app.mailboxes.get_items().iter().enumerate().find_map(
                     |(index, mailbox)| {
-                        if mailbox.full_name == mailbox_name {
+                        if mailbox.mailbox == initial_mailbox {
                             Some(index)
                         } else {
                             None
@@ -112,26 +109,25 @@ impl App {
     }
 
     // Generate the mailboxes list
-    pub(crate) fn build_mailbox_list(mailbox_sizes: Vec<(String, usize)>) -> Vec<Mailbox> {
-        let mut mailboxes = HashMap::<String, Mailbox>::new();
+    pub(crate) fn build_mailbox_list(
+        mailbox_sizes: Vec<(database::Mailbox, usize)>,
+    ) -> Vec<Mailbox> {
+        let mut mailboxes = HashMap::<database::Mailbox, Mailbox>::new();
         for (mailbox, count) in mailbox_sizes {
-            let sections = mailbox.split('/').collect::<Vec<_>>();
-            for index in 0..sections.len() {
+            for (index, full_name) in mailbox.iter_ancestors().enumerate() {
                 // Children mailboxes contribute to the size of their parents
-                let name = sections[0..=index].join("/");
                 mailboxes
-                    .entry(name.clone())
+                    .entry(full_name.clone())
                     .and_modify(|mailbox| mailbox.message_count += count)
                     .or_insert(Mailbox {
-                        full_name: name,
-                        name: sections[index].to_string(),
+                        mailbox: full_name,
                         depth: index,
                         message_count: count,
                     });
             }
         }
         let mut mailboxes = mailboxes.into_values().collect::<Vec<_>>();
-        mailboxes.sort_by(|mailbox1, mailbox2| mailbox1.full_name.cmp(&mailbox2.full_name));
+        mailboxes.sort_by(|mailbox1, mailbox2| mailbox1.mailbox.cmp(&mailbox2.mailbox));
         mailboxes
     }
 
@@ -183,7 +179,7 @@ impl App {
             .with_mailbox_option(
                 self.mailboxes
                     .get_cursor_item()
-                    .map(|mailbox| mailbox.full_name.clone()),
+                    .map(|mailbox| mailbox.mailbox.clone()),
             )
             .with_states(self.get_active_states())
     }
@@ -271,62 +267,56 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_build_mailbox_list() {
+    fn test_build_mailbox_list() -> Result<()> {
         let mailboxes = vec![
-            (String::from("a"), 1),
-            (String::from("a/b"), 1),
-            (String::from("c"), 1),
-            (String::from("b"), 1),
-            (String::from("b/d/e"), 1),
-            (String::from("b/c"), 1),
-            (String::from("b/d"), 1),
+            ("a".try_into()?, 1),
+            ("a/b".try_into()?, 1),
+            ("c".try_into()?, 1),
+            ("b".try_into()?, 1),
+            ("b/d/e".try_into()?, 1),
+            ("b/c".try_into()?, 1),
+            ("b/d".try_into()?, 1),
         ];
         assert_eq!(
             App::build_mailbox_list(mailboxes),
             vec![
                 Mailbox {
-                    full_name: String::from("a"),
-                    name: String::from("a"),
+                    mailbox: "a".try_into()?,
                     depth: 0,
                     message_count: 2,
                 },
                 Mailbox {
-                    full_name: String::from("a/b"),
-                    name: String::from("b"),
+                    mailbox: "a/b".try_into()?,
                     depth: 1,
                     message_count: 1,
                 },
                 Mailbox {
-                    full_name: String::from("b"),
-                    name: String::from("b"),
+                    mailbox: "b".try_into()?,
                     depth: 0,
                     message_count: 4,
                 },
                 Mailbox {
-                    full_name: String::from("b/c"),
-                    name: String::from("c"),
+                    mailbox: "b/c".try_into()?,
                     depth: 1,
                     message_count: 1,
                 },
                 Mailbox {
-                    full_name: String::from("b/d"),
-                    name: String::from("d"),
+                    mailbox: "b/d".try_into()?,
                     depth: 1,
                     message_count: 2,
                 },
                 Mailbox {
-                    full_name: String::from("b/d/e"),
-                    name: String::from("e"),
+                    mailbox: "b/d/e".try_into()?,
                     depth: 2,
                     message_count: 1,
                 },
                 Mailbox {
-                    full_name: String::from("c"),
-                    name: String::from("c"),
+                    mailbox: "c".try_into()?,
                     depth: 0,
                     message_count: 1,
                 }
             ]
         );
+        Ok(())
     }
 }

@@ -6,11 +6,13 @@
 )]
 
 mod database;
+mod mailbox;
 mod message;
 mod message_filter;
 mod new_message;
 
 pub use crate::database::{Database, Engine};
+pub use crate::mailbox::Mailbox;
 pub use crate::message::{Message, State};
 pub use crate::message_filter::MessageFilter;
 pub use crate::new_message::NewMessage;

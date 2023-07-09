@@ -94,12 +94,12 @@ mod tests {
             read_messages_stdin(stdin.as_bytes(), ImportMessageFormat::Tsv),
             vec![
                 NewMessage {
-                    mailbox: String::from("a"),
+                    mailbox: "a".try_into().unwrap(),
                     content: String::from("b"),
                     state: None
                 },
                 NewMessage {
-                    mailbox: String::from("foo"),
+                    mailbox: "foo".try_into().unwrap(),
                     content: String::from("bar"),
                     state: Some(State::Read)
                 }
@@ -117,12 +117,12 @@ mod tests {
             read_messages_stdin(stdin.as_bytes(), ImportMessageFormat::Json),
             vec![
                 NewMessage {
-                    mailbox: String::from("a"),
+                    mailbox: "a".try_into().unwrap(),
                     content: String::from("b"),
                     state: None
                 },
                 NewMessage {
-                    mailbox: String::from("foo"),
+                    mailbox: "foo".try_into().unwrap(),
                     content: String::from("bar"),
                     state: Some(State::Read)
                 }

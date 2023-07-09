@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use database::MessageFilter;
+use database::{Mailbox, MessageFilter};
 use serde::de::value::{Error, StrDeserializer};
 use serde::de::IntoDeserializer;
 use serde::Deserialize;
@@ -8,7 +8,7 @@ use serde::Deserialize;
 #[serde(deny_unknown_fields)]
 pub struct Filter {
     ids: Option<String>,
-    mailbox: Option<String>,
+    mailbox: Option<Mailbox>,
     states: Option<String>,
 }
 
@@ -24,7 +24,7 @@ impl TryFrom<Filter> for MessageFilter {
                     .collect::<Result<Vec<_>>>()?,
             );
         }
-        if let Some(mailbox) = value.mailbox.as_ref() {
+        if let Some(mailbox) = value.mailbox {
             message_filter = message_filter.with_mailbox(mailbox);
         }
         if let Some(states) = value.states.as_ref() {

@@ -1,4 +1,5 @@
 use clap::{Parser, ValueEnum};
+use database::Mailbox;
 
 #[derive(Clone, ValueEnum)]
 pub enum AddMessageState {
@@ -43,7 +44,7 @@ pub enum Command {
     /// Add a message to a mailbox
     Add {
         /// Mailbox name
-        mailbox: String,
+        mailbox: Mailbox,
 
         /// Message content
         content: String,
@@ -64,7 +65,7 @@ pub enum Command {
     View {
         /// Only view messages in a particular mailbox
         #[clap(short = 'm', long)]
-        mailbox: Option<String>,
+        mailbox: Option<Mailbox>,
 
         /// Only view messages in a particular state
         #[clap(value_enum, short = 's', long, default_value = "unread")]
@@ -79,28 +80,28 @@ pub enum Command {
     Read {
         /// Only read messages in a particular mailbox
         #[clap(short = 'm', long)]
-        mailbox: Option<String>,
+        mailbox: Option<Mailbox>,
     },
 
     /// Archive all read and unread messages
     Archive {
         /// Only archive messages in a particular mailbox
         #[clap(short = 'm', long)]
-        mailbox: Option<String>,
+        mailbox: Option<Mailbox>,
     },
 
     /// Permanently clear archived messages
     Clear {
         /// Only clear archived messages in a particular mailbox
         #[clap(short = 'm', long)]
-        mailbox: Option<String>,
+        mailbox: Option<Mailbox>,
     },
 
     /// Open an interactive terminal UI to interact with messages
     Tui {
         /// Set the initial mailbox filter to a particular mailbox
         #[clap(short = 'm', long)]
-        mailbox: Option<String>,
+        mailbox: Option<Mailbox>,
 
         /// Set the initial message state filter to particular states
         #[clap(value_enum, short = 's', long, default_value = "unread")]

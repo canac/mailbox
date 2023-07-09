@@ -10,7 +10,7 @@ use actix_web::middleware::DefaultHeaders;
 use actix_web::web::{self, Data, Json, Query, ServiceConfig};
 use actix_web::{delete, get, post, put, HttpResponse, Result};
 use anyhow::{anyhow, Context};
-use database::{Database, Engine, Message, MessageFilter, NewMessage, State};
+use database::{Database, Engine, Mailbox, Message, MessageFilter, NewMessage, State};
 use futures::future::try_join_all;
 use serde::Deserialize;
 use shuttle_actix_web::ShuttleActixWeb;
@@ -31,7 +31,7 @@ enum CreateMessage {
 async fn read_mailboxes(
     data: Data<AppData>,
     filter: Query<Filter>,
-) -> Result<Json<BTreeMap<String, usize>>> {
+) -> Result<Json<BTreeMap<Mailbox, usize>>> {
     let mailboxes = data
         .load_mailboxes(filter.into_inner().try_into().map_err(ErrorBadRequest)?)
         .await

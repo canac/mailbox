@@ -16,7 +16,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use database::{Database, Message, State};
+use database::{Database, Mailbox, Message, State};
 use linkify::{LinkFinder, LinkKind};
 use std::io;
 use std::time::{Duration, Instant};
@@ -32,7 +32,7 @@ use tui::{
 
 pub async fn run(
     db: Database,
-    initial_mailbox: Option<String>,
+    initial_mailbox: Option<Mailbox>,
     initial_states: Vec<State>,
 ) -> Result<()> {
     // Setup terminal
@@ -267,7 +267,7 @@ fn render_mailboxes<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect)
                 format!(
                     "{}{} ({})",
                     " ".repeat(mailbox.depth),
-                    mailbox.name,
+                    mailbox.mailbox.get_leaf_name(),
                     mailbox.message_count
                 ),
                 Style::default(),

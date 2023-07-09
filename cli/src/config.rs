@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use database::{NewMessage, State};
+use database::{Mailbox, NewMessage, State};
 use serde::Deserialize;
 use std::{collections::HashMap, io::ErrorKind, path::PathBuf};
 
@@ -45,8 +45,8 @@ impl Config {
     }
 
     // Return the configured override for the given mailbox if there is one
-    pub fn get_override(&self, mailbox: &str) -> Option<Override> {
-        let sections = mailbox.split('/').collect::<Vec<_>>();
+    pub fn get_override(&self, mailbox: &Mailbox) -> Option<Override> {
+        let sections = mailbox.as_ref().split('/').collect::<Vec<_>>();
         (0..sections.len())
             .rev()
             .find_map(|index| self.overrides.get(&sections[0..=index].join("/")))
@@ -79,7 +79,7 @@ mod tests {
 
     fn apply_override(config: &Config, mailbox: &str) -> Option<NewMessage> {
         config.apply_override(NewMessage {
-            mailbox: mailbox.to_string(),
+            mailbox: mailbox.try_into().unwrap(),
             content: String::from("Content"),
             state: Some(State::Unread),
         })
@@ -119,11 +119,20 @@ mod tests {
     #[test]
     fn test_get_overrides() -> Result<()> {
         let config = load_config("[overrides]\n'a/b/c' = 'ignored'\n'a' = 'read'")?;
-        assert_eq!(config.get_override("a/b/c/d"), Some(Override::Ignored));
-        assert_eq!(config.get_override("a/b/c"), Some(Override::Ignored));
-        assert_eq!(config.get_override("a/b"), Some(Override::Read));
-        assert_eq!(config.get_override("a"), Some(Override::Read));
-        assert_eq!(config.get_override("b"), None);
+        assert_eq!(
+            config.get_override(&"a/b/c/d".try_into()?),
+            Some(Override::Ignored)
+        );
+        assert_eq!(
+            config.get_override(&"a/b/c".try_into()?),
+            Some(Override::Ignored)
+        );
+        assert_eq!(
+            config.get_override(&"a/b".try_into()?),
+            Some(Override::Read)
+        );
+        assert_eq!(config.get_override(&"a".try_into()?), Some(Override::Read));
+        assert_eq!(config.get_override(&"b".try_into()?), None);
         Ok(())
     }
 

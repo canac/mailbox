@@ -1,3 +1,4 @@
+use crate::mailbox::Mailbox;
 use crate::message::{Id, Message, MessageIden, State};
 use sea_query::{Cond, Condition, Expr};
 use serde::Deserialize;
@@ -6,7 +7,7 @@ use serde::Deserialize;
 #[must_use]
 pub struct MessageFilter {
     ids: Option<Vec<Id>>,
-    mailbox: Option<String>,
+    mailbox: Option<Mailbox>,
     states: Option<Vec<State>>,
 }
 
@@ -19,13 +20,13 @@ impl MessageFilter {
     }
 
     // Add a mailbox filter
-    pub fn with_mailbox(mut self, mailbox: impl Into<String>) -> Self {
-        self.mailbox = Some(mailbox.into());
+    pub fn with_mailbox(mut self, mailbox: Mailbox) -> Self {
+        self.mailbox = Some(mailbox);
         self
     }
 
     // Add a mailbox filter if the option is Some
-    pub fn with_mailbox_option(self, mailbox: Option<impl Into<String>>) -> Self {
+    pub fn with_mailbox_option(self, mailbox: Option<Mailbox>) -> Self {
         match mailbox {
             Some(mailbox) => self.with_mailbox(mailbox),
             None => self,
@@ -80,7 +81,10 @@ impl MessageFilter {
         }
         if let Some(mailbox) = self.mailbox.as_ref() {
             if !(mailbox == &message.mailbox
-                || message.mailbox.starts_with(format!("{mailbox}/").as_str()))
+                || message
+                    .mailbox
+                    .as_ref()
+                    .starts_with(format!("{mailbox}/").as_str()))
             {
                 return false;
             }
@@ -104,7 +108,7 @@ mod tests {
         Message {
             id: 1,
             timestamp: NaiveDateTime::MIN,
-            mailbox: String::from("parent/child"),
+            mailbox: "parent/child".try_into().unwrap(),
             content: String::from("Content"),
             state: State::Unread,
         }
@@ -115,7 +119,9 @@ mod tests {
         assert_eq!(MessageFilter::new().matches_all(), true);
         assert_eq!(MessageFilter::new().with_ids(vec![1]).matches_all(), false);
         assert_eq!(
-            MessageFilter::new().with_mailbox("foo").matches_all(),
+            MessageFilter::new()
+                .with_mailbox("foo".try_into().unwrap())
+                .matches_all(),
             false
         );
         assert_eq!(
@@ -160,25 +166,25 @@ mod tests {
         let message = get_message();
         assert_eq!(
             MessageFilter::new()
-                .with_mailbox("parent")
+                .with_mailbox("parent".try_into().unwrap())
                 .matches_message(&message),
             true
         );
         assert_eq!(
             MessageFilter::new()
-                .with_mailbox("parent/child")
+                .with_mailbox("parent/child".try_into().unwrap())
                 .matches_message(&message),
             true
         );
         assert_eq!(
             MessageFilter::new()
-                .with_mailbox("parent/child2")
+                .with_mailbox("parent/child2".try_into().unwrap())
                 .matches_message(&message),
             false
         );
         assert_eq!(
             MessageFilter::new()
-                .with_mailbox("parent/child/grandchild")
+                .with_mailbox("parent/child/grandchild".try_into().unwrap())
                 .matches_message(&message),
             false
         );

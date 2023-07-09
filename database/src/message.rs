@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::{any::AnyRow, FromRow, Row};
 use std::fmt::{self, Display, Formatter};
 
+use crate::Mailbox;
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum State {
@@ -62,7 +64,7 @@ pub type Id = i32;
 pub struct Message {
     pub id: Id,
     pub timestamp: chrono::NaiveDateTime,
-    pub mailbox: String,
+    pub mailbox: Mailbox,
     pub content: String,
     pub state: State,
 }
@@ -72,7 +74,7 @@ impl FromRow<'_, AnyRow> for Message {
         Ok(Self {
             id: row.try_get("id")?,
             timestamp: row.try_get("timestamp")?,
-            mailbox: row.try_get("mailbox")?,
+            mailbox: row.try_get::<String, _>("mailbox")?.try_into().unwrap(),
             content: row.try_get("content")?,
             state: row.try_get::<i32, _>("state")?.try_into().unwrap(),
         })

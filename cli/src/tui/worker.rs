@@ -1,5 +1,5 @@
 use super::monotonic_counter::MonotonicCounter;
-use database::{Database, Message, MessageFilter, State};
+use database::{Database, Mailbox, Message, MessageFilter, State};
 use std::sync::mpsc::{self, channel};
 use std::sync::Arc;
 use std::thread;
@@ -17,7 +17,7 @@ pub enum Request {
 
 pub enum Response {
     LoadMessages(Vec<Message>),
-    LoadMailboxes(Vec<(String, usize)>),
+    LoadMailboxes(Vec<(Mailbox, usize)>),
     ChangeMessageStates,
     DeleteMessages,
 }
