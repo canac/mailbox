@@ -51,8 +51,8 @@ impl MessageFilter {
             .add_option(self.ids.map(|ids| Expr::col(MessageIden::Id).is_in(ids)))
             .add_option(self.mailbox.map(|mailbox| {
                 Cond::any()
-                    .add(Expr::col(MessageIden::Mailbox).eq(mailbox.clone()))
                     .add(Expr::col(MessageIden::Mailbox).like(format!("{mailbox}/%")))
+                    .add(Expr::col(MessageIden::Mailbox).eq(mailbox))
             }))
             .add_option(self.states.map(|states| {
                 Expr::col(MessageIden::State).is_in(
