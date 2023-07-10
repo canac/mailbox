@@ -2,7 +2,7 @@ use crate::message::{Id, Message, MessageIden, State};
 use sea_query::{Cond, Condition, Expr};
 use serde::Deserialize;
 
-#[derive(Clone, Default, Deserialize)]
+#[derive(Clone, Default, Deserialize, Eq, PartialEq)]
 #[must_use]
 pub struct MessageFilter {
     ids: Option<Vec<Id>>,

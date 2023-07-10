@@ -155,9 +155,15 @@ impl App {
         while let Ok(res) = self.worker_rx.try_recv() {
             match res {
                 Response::LoadMessages(messages) => self.messages.replace_items(messages),
-                Response::LoadMailboxes(mailboxes) => self
-                    .mailboxes
-                    .replace_items(Self::build_mailbox_list(mailboxes)),
+                Response::LoadMailboxes(mailboxes) => {
+                    let old_display_filter = self.get_display_filter();
+                    self.mailboxes
+                        .replace_items(Self::build_mailbox_list(mailboxes));
+                    if old_display_filter != self.get_display_filter() {
+                        // If changing the mailbox list changed the active mailbox, refresh the message list
+                        self.update_messages()?;
+                    }
+                }
                 Response::ChangeMessageStates | Response::DeleteMessages => {
                     self.update_mailboxes()?;
                 }
