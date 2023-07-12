@@ -16,3 +16,7 @@ sea-query-binder = { version = "0.3.1", features = ["sqlx-any", "sqlx-postgres",
 serde = { workspace = true }
 sqlx = { version = "0.6.3", default-features = false, features = ["runtime-tokio-rustls"] }
 tokio = { workspace = true }
+
+[dev-dependencies]
+rstest = "0.18.1"
+rstest_reuse = "0.6.0"

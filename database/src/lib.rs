@@ -16,3 +16,5 @@ pub use crate::mailbox::Mailbox;
 pub use crate::message::{Message, State};
 pub use crate::message_filter::MessageFilter;
 pub use crate::new_message::NewMessage;
+#[cfg(test)]
+pub use rstest_reuse;
