@@ -10,7 +10,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: printf "'AUTH_TOKEN' = '${{ secrets.AUTH_TOKEN }}'\n'DATABASE_URL' = '${{ secrets.DATABASE_URL }}'\n" http_server > http_server/Secrets.toml
-      - uses: shuttle-hq/deploy-action@v0.0.3
-        with:
-          deploy-key: ${{ secrets.SHUTTLE_DEPLOY_KEY }}
-          working-directory: http_server
+      - name: Install cargo-shuttle
+        run: |
+          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+          cargo binstall -y cargo-shuttle
+      - name: Deploy to Shuttle
+        run: |
+          cargo shuttle deploy --allow-dirty --no-test --working-directory http_server/
+        env:
+          SHUTTLE_API_KEY: ${{ secrets.SHUTTLE_DEPLOY_KEY }}
