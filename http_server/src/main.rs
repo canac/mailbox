@@ -11,7 +11,6 @@ use actix_web::web::{self, Data, Json, Query, ServiceConfig};
 use actix_web::{delete, get, post, put, HttpResponse, Result};
 use anyhow::{anyhow, Context};
 use database::{Database, Engine, Mailbox, Message, MessageFilter, NewMessage, State};
-use futures::future::try_join_all;
 use serde::Deserialize;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_secrets::SecretStore;
@@ -59,11 +58,8 @@ async fn create_messages(
         CreateMessage::Message(message) => vec![message],
         CreateMessage::Messages(messages) => messages,
     };
-    let futures = new_messages
-        .into_iter()
-        .map(|message| data.add_message(message))
-        .collect::<Vec<_>>();
-    let messages = try_join_all(futures)
+    let messages = data
+        .add_messages(new_messages.into_iter())
         .await
         .map_err(ErrorInternalServerError)?;
     Ok(Json(messages))

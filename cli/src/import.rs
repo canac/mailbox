@@ -3,7 +3,6 @@ use crate::config::Config;
 use anyhow::{Context, Result};
 use csv::ReaderBuilder;
 use database::{Database, Message, NewMessage};
-use futures::future::try_join_all;
 
 // Import messages from stdin lines
 pub fn read_messages_stdin<Stdin>(stdin: Stdin, format: ImportMessageFormat) -> Vec<NewMessage>
@@ -63,15 +62,17 @@ pub async fn import_messages(
     config: &Option<Config>,
     new_messages: Vec<NewMessage>,
 ) -> Result<Vec<Message>> {
-    let futures = new_messages
-        .into_iter()
-        .filter_map(|message| match config.as_ref() {
-            Some(config) => config.apply_override(message),
-            None => Some(message),
-        })
-        .map(|message| db.add_message(message))
-        .collect::<Vec<_>>();
-    try_join_all(futures).await
+    let messages = db
+        .add_messages(
+            new_messages
+                .into_iter()
+                .filter_map(|message| match config.as_ref() {
+                    Some(config) => config.apply_override(message),
+                    None => Some(message),
+                }),
+        )
+        .await?;
+    Ok(messages)
 }
 
 #[cfg(test)]

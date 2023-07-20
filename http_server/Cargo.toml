@@ -12,7 +12,6 @@ license = { workspace = true }
 actix-web = "4.3.1"
 anyhow = { workspace = true }
 database = { path = "../database" }
-futures = { workspace = true }
 serde = { workspace = true }
 shuttle-actix-web = "0.21.0"
 shuttle-runtime = "0.21.0"
