@@ -18,17 +18,16 @@ use crossterm::{
 };
 use database::{Database, Mailbox, Message, State};
 use linkify::{LinkFinder, LinkKind};
-use std::io;
-use std::time::{Duration, Instant};
-use tui::layout::Rect;
-use tui::{
+use ratatui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame, Terminal,
 };
+use std::io;
+use std::time::{Duration, Instant};
 
 pub async fn run(
     db: Database,
@@ -213,34 +212,35 @@ fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
 
 // Render the footer section of the UI
 fn render_footer<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) {
-    let active_style = Style::default().fg(Color::Black).bg(Color::Green);
-    let inactive_style = Style::default();
-    let footer = Paragraph::new(Spans::from(vec![
+    const ACTIVE_STYLE: Style = Style::new().fg(Color::Black).bg(Color::Green);
+    const INACTIVE_STYLE: Style = Style::new();
+    const SELECTING_STYLE: Style = Style::new().fg(Color::LightBlue);
+    let footer = Paragraph::new(Line::from(vec![
         Span::raw(" "),
         Span::styled(
             " unread ",
             if app.active_states.contains(&State::Unread) {
-                active_style
+                ACTIVE_STYLE
             } else {
-                inactive_style
+                INACTIVE_STYLE
             },
         ),
         Span::raw(" "),
         Span::styled(
             " read ",
             if app.active_states.contains(&State::Read) {
-                active_style
+                ACTIVE_STYLE
             } else {
-                inactive_style
+                INACTIVE_STYLE
             },
         ),
         Span::raw(" "),
         Span::styled(
             " archived ",
             if app.active_states.contains(&State::Archived) {
-                active_style
+                ACTIVE_STYLE
             } else {
-                inactive_style
+                INACTIVE_STYLE
             },
         ),
         Span::raw("   "),
@@ -250,7 +250,7 @@ fn render_footer<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) {
                 SelectionMode::Select => "selecting",
                 SelectionMode::Deselect => "deselecting",
             },
-            Style::default().fg(Color::LightBlue),
+            SELECTING_STYLE,
         ),
     ]));
     frame.render_widget(footer, area);
@@ -258,6 +258,12 @@ fn render_footer<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) {
 
 // Render the mailboxes section of the UI
 fn render_mailboxes<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) {
+    const MAILBOX_STYLE: Style = Style::new();
+    const MAILBOX_BORDER_STYLE: Style = Style::new().fg(Color::LightBlue);
+    const MESSAGE_BORDER_STYLE: Style = Style::new();
+    const MAILBOX_HIGHLIGHT_STYLE: Style = Style::new()
+        .bg(Color::LightBlue)
+        .add_modifier(Modifier::BOLD);
     let mailboxes = app
         .mailboxes
         .get_items()
@@ -270,13 +276,13 @@ fn render_mailboxes<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect)
                     mailbox.mailbox.get_leaf_name(),
                     mailbox.message_count
                 ),
-                Style::default(),
+                MAILBOX_STYLE,
             ))
         })
         .collect::<Vec<_>>();
     let border_style = match app.active_pane {
-        Pane::Mailboxes => Style::default().fg(Color::LightBlue),
-        Pane::Messages => Style::default(),
+        Pane::Mailboxes => MAILBOX_BORDER_STYLE,
+        Pane::Messages => MESSAGE_BORDER_STYLE,
     };
     let mailboxes_list = List::new(mailboxes)
         .block(
@@ -292,30 +298,31 @@ fn render_mailboxes<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect)
                     app.mailboxes.get_items().len()
                 )),
         )
-        .highlight_style(
-            Style::default()
-                .bg(Color::LightBlue)
-                .add_modifier(Modifier::BOLD),
-        );
+        .highlight_style(MAILBOX_HIGHLIGHT_STYLE);
     frame.render_stateful_widget(mailboxes_list, area, app.mailboxes.get_list_state());
 }
 
 // Render the messages section of the UI
 fn render_messages<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) {
+    const BULLET_STYLE: Style = Style::new().add_modifier(Modifier::BOLD);
+    const UNREAD_STYLE: Style = Style::new().fg(Color::Red).add_modifier(Modifier::BOLD);
+    const TIMESTAMP_STYLE: Style = Style::new().fg(Color::Yellow);
+    const MESSAGE_BORDER_STYLE: Style = Style::new().fg(Color::LightBlue);
+    const MAILBOX_BORDER_STYLE: Style = Style::new();
+    const HIGHLIGHT_STYLE: Style = Style::new()
+        .bg(Color::LightBlue)
+        .add_modifier(Modifier::BOLD);
     let messages = app
         .messages
         .iter_items_with_selected()
         .map(|(message, selected)| {
             let active_marker = if selected {
-                Span::styled("• ", Style::default().add_modifier(Modifier::BOLD))
+                Span::styled("• ", BULLET_STYLE)
             } else {
                 Span::raw("  ")
             };
             let state_marker = match message.state {
-                State::Unread => Span::styled(
-                    "* ",
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-                ),
+                State::Unread => Span::styled("* ", UNREAD_STYLE),
                 State::Read => Span::raw("  "),
                 State::Archived => Span::raw("- "),
             };
@@ -325,20 +332,17 @@ fn render_messages<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) 
                     .signed_duration_since(Utc::now().naive_utc()),
             )
             .to_string();
-            ListItem::new(Spans::from(vec![
+            ListItem::new(Line::from(vec![
                 active_marker,
                 state_marker,
                 Span::raw(message.content.clone()),
-                Span::styled(
-                    format!(" @ {timestamp}"),
-                    Style::default().fg(Color::Yellow),
-                ),
+                Span::styled(format!(" @ {timestamp}"), TIMESTAMP_STYLE),
             ]))
         })
         .collect::<Vec<_>>();
     let border_style = match app.active_pane {
-        Pane::Messages => Style::default().fg(Color::LightBlue),
-        Pane::Mailboxes => Style::default(),
+        Pane::Messages => MESSAGE_BORDER_STYLE,
+        Pane::Mailboxes => MAILBOX_BORDER_STYLE,
     };
     let messages_list = List::new(messages)
         .block(
@@ -354,11 +358,7 @@ fn render_messages<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) 
                     app.messages.get_items().len()
                 )),
         )
-        .highlight_style(
-            Style::default()
-                .bg(Color::LightBlue)
-                .add_modifier(Modifier::BOLD),
-        );
+        .highlight_style(HIGHLIGHT_STYLE);
     frame.render_stateful_widget(messages_list, area, app.messages.get_list_state());
 }
 

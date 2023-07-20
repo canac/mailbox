@@ -1,6 +1,6 @@
 use super::navigable_list::{Keyed, NavigableList};
+use ratatui::widgets::ListState;
 use std::collections::HashSet;
-use tui::widgets::ListState;
 
 #[derive(Clone, Copy)]
 pub enum SelectionMode {

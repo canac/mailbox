@@ -1,5 +1,5 @@
 use super::navigable_list::{Keyed, NavigableList};
-use tui::widgets::ListState;
+use ratatui::widgets::ListState;
 
 pub trait Depth {
     fn get_depth(&self) -> usize;
