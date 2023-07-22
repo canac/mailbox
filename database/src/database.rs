@@ -165,7 +165,7 @@ impl Database {
         Ok(messages)
     }
 
-    // Load messages, applying the provided filters
+    // Load all messages that match the filter
     pub async fn load_messages(&self, filter: MessageFilter) -> Result<Vec<Message>> {
         let (sql, values) = Query::select()
             .expr(Expr::asterisk())
@@ -182,9 +182,8 @@ impl Database {
         Ok(messages)
     }
 
-    // Move messages from their old state into new_state
-    // Only load messages in the specified mailbox if mailbox_filter is provided
-    // Only load messages in one of the specified states if states_filter is provided
+    // Move messages that match the filter from their old state into new_state, returning the
+    // modified messages
     pub async fn change_state(
         &self,
         filter: MessageFilter,
@@ -206,7 +205,7 @@ impl Database {
         Ok(messages)
     }
 
-    // Delete messages, applying the provided filters
+    // Delete messages that match the filter, returning the deleted messages
     pub async fn delete_messages(&self, filter: MessageFilter) -> Result<Vec<Message>> {
         let (sql, values) = Query::delete()
             .from_table(MessageIden::Table)
@@ -223,7 +222,8 @@ impl Database {
         Ok(messages)
     }
 
-    // Load the names of all used mailboxes
+    // Given all messages that match the filter, determine the names and sizes of all mailboxes
+    // used by those messages
     pub async fn load_mailboxes(&self, filter: MessageFilter) -> Result<Vec<(Mailbox, usize)>> {
         let (sql, values) = Query::select()
             .from(MessageIden::Table)
