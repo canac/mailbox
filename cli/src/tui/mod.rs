@@ -111,7 +111,6 @@ fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
     match key.code {
         KeyCode::Esc => {
             app.mailboxes.remove_cursor();
-            app.update_messages()?;
         }
         KeyCode::Down | KeyCode::Char('j') => {
             if control {
@@ -119,7 +118,6 @@ fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
             } else {
                 app.mailboxes.next();
             }
-            app.update_messages()?;
         }
         KeyCode::Up | KeyCode::Char('k') => {
             if control {
@@ -127,11 +125,13 @@ fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
             } else {
                 app.mailboxes.previous();
             }
-            app.update_messages()?;
         }
-        KeyCode::Char('K') => app.mailboxes.parent(),
-        _ => {}
+        KeyCode::Char('K') => {
+            app.mailboxes.parent();
+        }
+        _ => return Ok(()),
     }
+    app.update_messages()?;
 
     Ok(())
 }
