@@ -13,7 +13,7 @@ jobs:
       - name: Install cargo-shuttle
         run: |
           curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
-          cargo binstall -y cargo-shuttle
+          cargo binstall -y cargo-shuttle@0.25.0
       - name: Deploy to Shuttle
         run: |
           cargo shuttle deploy --allow-dirty --no-test --working-directory http_server/
