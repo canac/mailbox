@@ -59,7 +59,7 @@ async fn create_messages(
         CreateMessage::Messages(messages) => messages,
     };
     let messages = data
-        .add_messages(new_messages.into_iter())
+        .add_messages(new_messages)
         .await
         .map_err(ErrorInternalServerError)?;
     Ok(Json(messages))

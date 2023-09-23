@@ -136,17 +136,21 @@ impl Database {
     }
 
     // Add multiple new messages, returning the new messages
-    pub async fn add_messages(
-        &self,
-        messages: impl Iterator<Item = NewMessage>,
-    ) -> Result<Vec<Message>> {
+    pub async fn add_messages(&self, messages: Vec<NewMessage>) -> Result<Vec<Message>> {
+        if messages.is_empty() {
+            // The SQL query will be malformed if there are no messages to add, so bail
+            return Ok(vec![]);
+        }
+
         let mut statement = Query::insert();
         statement.into_table(MessageIden::Table).columns([
             MessageIden::Mailbox,
             MessageIden::Content,
             MessageIden::State,
         ]);
-        for message in messages {
+        // Add the messages in reverse order so that the first message in the batch will appear
+        // first when the messages are loaded
+        for message in messages.into_iter().rev() {
             Self::validate_message(&message)?;
             statement.values(vec![
                 message.mailbox.into(),
@@ -158,10 +162,12 @@ impl Database {
             .returning_all()
             .build_any_sqlx(&*self.query_builder);
 
-        let messages = sqlx::query_as_with::<_, Message, _>(&sql, values)
+        let mut messages = sqlx::query_as_with::<_, Message, _>(&sql, values)
             .fetch_all(&self.pool)
             .await
             .context("Failed to add messages")?;
+        // Reverse the messages back to the order from the input
+        messages.reverse();
         Ok(messages)
     }
 
@@ -171,7 +177,6 @@ impl Database {
             .expr(Expr::asterisk())
             .from(MessageIden::Table)
             .cond_where(filter.get_where())
-            .order_by(MessageIden::Timestamp, Order::Desc)
             .order_by(MessageIden::Id, Order::Desc)
             .build_any_sqlx(&*self.query_builder);
 
@@ -295,17 +300,14 @@ mod tests {
 
     async fn get_populated_db(engine: Engine) -> Result<Database> {
         let db = Database::new(engine).await?;
-        db.add_messages(
-            vec![
-                make_message("unread", "unread1", State::Unread)?,
-                make_message("unread", "unread2", State::Unread)?,
-                make_message("read", "read1", State::Read)?,
-                make_message("read", "read2", State::Read)?,
-                make_message("read", "read3", State::Read)?,
-                make_message("archived", "archive1", State::Archived)?,
-            ]
-            .into_iter(),
-        )
+        db.add_messages(vec![
+            make_message("unread", "unread1", State::Unread)?,
+            make_message("unread", "unread2", State::Unread)?,
+            make_message("read", "read1", State::Read)?,
+            make_message("read", "read2", State::Read)?,
+            make_message("read", "read3", State::Read)?,
+            make_message("archived", "archive1", State::Archived)?,
+        ])
         .await?;
         Ok(db)
     }
@@ -327,24 +329,29 @@ mod tests {
     #[tokio::test]
     async fn test_add_many(engine: Engine) -> Result<()> {
         let db = Database::new(engine).await?;
-        db.add_messages(
-            vec![
+        let messages = db
+            .add_messages(vec![
                 make_message("mailbox2", "message2", None)?,
                 make_message("mailbox1", "message1", None)?,
                 make_message("mailbox1", "message3", None)?,
-            ]
-            .into_iter(),
-        )
-        .await?;
+            ])
+            .await?;
+        assert_eq!(
+            messages
+                .into_iter()
+                .map(|message| message.content)
+                .collect::<Vec<_>>(),
+            vec!["message2", "message1", "message3"]
+        );
         assert_eq!(db.load_messages(MessageFilter::new()).await?.len(), 3);
 
         let messages = db
             .load_messages(MessageFilter::new().with_mailbox("mailbox1".try_into()?))
             .await?;
         assert_eq!(messages[0].mailbox.as_ref(), "mailbox1");
-        assert_eq!(messages[0].content, "message3");
+        assert_eq!(messages[0].content, "message1");
         assert_eq!(messages[1].mailbox.as_ref(), "mailbox1");
-        assert_eq!(messages[1].content, "message1");
+        assert_eq!(messages[1].content, "message3");
         assert_eq!(messages.len(), 2);
 
         let messages = db
@@ -359,10 +366,20 @@ mod tests {
 
     #[apply(engines)]
     #[tokio::test]
+    async fn test_add_zero(engine: Engine) -> Result<()> {
+        let db = Database::new(engine).await?;
+        db.add_messages(vec![]).await?;
+        assert_eq!(db.load_messages(MessageFilter::new()).await?.len(), 0);
+
+        Ok(())
+    }
+
+    #[apply(engines)]
+    #[tokio::test]
     async fn test_add_invalid(engine: Engine) -> Result<()> {
         let db = Database::new(engine).await?;
         assert!(db
-            .add_messages(vec![make_message("mailbox", "", None)?].into_iter())
+            .add_messages(vec![make_message("mailbox", "", None)?])
             .await
             .is_err());
         Ok(())
@@ -406,17 +423,14 @@ mod tests {
     #[tokio::test]
     async fn test_load_with_sub_mailbox_filters(engine: Engine) -> Result<()> {
         let db = Database::new(engine).await?;
-        db.add_messages(
-            vec![
-                make_message("a", "message", None)?,
-                make_message("ab", "message", None)?,
-                make_message("a/b", "message", None)?,
-                make_message("a/c", "message", None)?,
-                make_message("a/b/c", "message", None)?,
-                make_message("a/c/b", "message", None)?,
-            ]
-            .into_iter(),
-        )
+        db.add_messages(vec![
+            make_message("a", "message", None)?,
+            make_message("ab", "message", None)?,
+            make_message("a/b", "message", None)?,
+            make_message("a/c", "message", None)?,
+            make_message("a/b/c", "message", None)?,
+            make_message("a/c/b", "message", None)?,
+        ])
         .await?;
         assert_eq!(
             db.load_messages(MessageFilter::new().with_mailbox("a".try_into()?))

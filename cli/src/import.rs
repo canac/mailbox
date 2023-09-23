@@ -69,7 +69,8 @@ pub async fn import_messages(
                 .filter_map(|message| match config.as_ref() {
                     Some(config) => config.apply_override(message),
                     None => Some(message),
-                }),
+                })
+                .collect(),
         )
         .await?;
     Ok(messages)
