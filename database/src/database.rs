@@ -325,40 +325,6 @@ mod tests {
 
     #[apply(engines)]
     #[tokio::test]
-    async fn test_add(engine: Engine) -> Result<()> {
-        let db = Database::new(engine).await?;
-        db.add_messages(
-            vec![
-                make_message("mailbox2", "message2", None)?,
-                make_message("mailbox1", "message1", None)?,
-                make_message("mailbox1", "message3", None)?,
-            ]
-            .into_iter(),
-        )
-        .await?;
-        assert_eq!(db.load_messages(MessageFilter::new()).await?.len(), 3);
-
-        let messages = db
-            .load_messages(MessageFilter::new().with_mailbox("mailbox1".try_into()?))
-            .await?;
-        assert_eq!(messages[0].mailbox.as_ref(), "mailbox1");
-        assert_eq!(messages[0].content, "message3");
-        assert_eq!(messages[1].mailbox.as_ref(), "mailbox1");
-        assert_eq!(messages[1].content, "message1");
-        assert_eq!(messages.len(), 2);
-
-        let messages = db
-            .load_messages(MessageFilter::new().with_mailbox("mailbox2".try_into()?))
-            .await?;
-        assert_eq!(messages[0].mailbox.as_ref(), "mailbox2");
-        assert_eq!(messages[0].content, "message2");
-        assert_eq!(messages.len(), 1);
-
-        Ok(())
-    }
-
-    #[apply(engines)]
-    #[tokio::test]
     async fn test_add_many(engine: Engine) -> Result<()> {
         let db = Database::new(engine).await?;
         db.add_messages(
