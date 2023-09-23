@@ -266,14 +266,14 @@ mod tests {
 
     use super::*;
 
-    // Return a unique database file path for each test
+    // Return a database file path for each test
     fn get_db_path() -> PathBuf {
         let dir = std::env::temp_dir().join("mailbox");
         std::fs::create_dir_all(&dir).unwrap();
         dir.join("mailbox.db")
     }
 
-    // Return a unique database URL for each test
+    // Return a database URL for each test
     fn get_db_url() -> String {
         std::env::var_os("TEST_DB_URL")
             .map(|url| url.into_string().unwrap())
