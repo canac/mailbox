@@ -881,7 +881,7 @@ dependencies = [
 
 [[package]]
 name = "database"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1356,7 +1356,7 @@ dependencies = [
 
 [[package]]
 name = "http_server"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -1671,7 +1671,7 @@ dependencies = [
 
 [[package]]
 name = "mailbox"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "anyhow",
  "chrono",
