@@ -32,12 +32,6 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      # neondatabase/create-branch-action and neondatabase/delete-branch-action don't have access to
-      # yarn globally-installed commands on Windows without this step
-      # https://github.com/neondatabase/create-branch-action/issues/33
-      - run: echo "$(yarn global bin)" >> $GITHUB_PATH
-        if: ${{ matrix.os }} == 'windows-latest'
-        shell: bash
       - uses: neondatabase/create-branch-action@v4
         with:
           project_id: ${{ vars.NEON_PROJECT_ID }}
