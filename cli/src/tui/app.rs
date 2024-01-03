@@ -17,6 +17,7 @@ pub enum Pane {
 #[derive(Debug, Eq, PartialEq)]
 pub struct Mailbox {
     // The name of the mailbox
+    #[allow(clippy::struct_field_names)]
     pub mailbox: database::Mailbox,
 
     // Root mailbox = 0, child mailbox = 1, grandchild mailbox = 2
