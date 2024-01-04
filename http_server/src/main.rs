@@ -170,36 +170,36 @@ mod tests {
     #[actix_web::test]
     async fn test_missing_authorization_header() {
         let app = App::new().configure(make_config().await.unwrap());
-        let app = test::init_service(app).await;
+        let service = test::init_service(app).await;
 
         let req = TestRequest::get().uri("/api/messages").to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_client_error());
     }
 
     #[actix_web::test]
     async fn test_invalid_authorization_header() {
         let app = App::new().configure(make_config().await.unwrap());
-        let app = test::init_service(app).await;
+        let service = test::init_service(app).await;
 
         let req = TestRequest::get()
             .uri("/api/messages")
             .append_header((header::AUTHORIZATION, "Bearer invalid"))
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_client_error());
     }
 
     #[actix_web::test]
     async fn test_cors_header() {
         let app = App::new().configure(make_config().await.unwrap());
-        let app = test::init_service(app).await;
+        let service = test::init_service(app).await;
 
         let req = TestRequest::get()
             .uri("/api/messages")
             .append_header((header::AUTHORIZATION, "Bearer token"))
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_success());
         assert_eq!(res.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(), "*");
     }
@@ -207,126 +207,126 @@ mod tests {
     #[actix_web::test]
     async fn test_filter_ids() {
         let app = App::new().configure(make_config().await.unwrap());
-        let app = test::init_service(app).await;
+        let service = test::init_service(app).await;
 
         let req = TestRequest::get()
             .uri("/api/messages?ids=1")
             .append_header((header::AUTHORIZATION, "Bearer token"))
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_success());
 
         let req = TestRequest::get()
             .uri("/api/messages?ids=1,2,3")
             .append_header((header::AUTHORIZATION, "Bearer token"))
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_success());
 
         let req = TestRequest::get()
             .uri("/api/messages?ids=foo")
             .append_header((header::AUTHORIZATION, "Bearer token"))
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_client_error());
     }
 
     #[actix_web::test]
     async fn test_filter_mailbox() {
         let app = App::new().configure(make_config().await.unwrap());
-        let app = test::init_service(app).await;
+        let service = test::init_service(app).await;
 
         let req = TestRequest::get()
             .uri("/api/messages?mailbox=foo")
             .append_header((header::AUTHORIZATION, "Bearer token"))
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_success());
     }
 
     #[actix_web::test]
     async fn test_filter_states() {
         let app = App::new().configure(make_config().await.unwrap());
-        let app = test::init_service(app).await;
+        let service = test::init_service(app).await;
 
         let req = TestRequest::get()
             .uri("/api/messages?states=unread")
             .append_header((header::AUTHORIZATION, "Bearer token"))
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_success());
 
         let req = TestRequest::get()
             .uri("/api/messages?states=read,archived")
             .append_header((header::AUTHORIZATION, "Bearer token"))
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_success());
 
         let req = TestRequest::get()
             .uri("/api/messages?states=unread,foo")
             .append_header((header::AUTHORIZATION, "Bearer token"))
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_client_error());
     }
 
     #[actix_web::test]
     async fn test_filter_multiple() {
         let app = App::new().configure(make_config().await.unwrap());
-        let app = test::init_service(app).await;
+        let service = test::init_service(app).await;
 
         let req = TestRequest::get()
             .uri("/api/messages?ids=1,2,3&mailbox=foo&states=unread,read")
             .append_header((header::AUTHORIZATION, "Bearer token"))
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_success());
     }
 
     #[actix_web::test]
     async fn test_delete_no_filter() {
         let app = App::new().configure(make_config().await.unwrap());
-        let app = test::init_service(app).await;
+        let service = test::init_service(app).await;
 
         let req = TestRequest::delete()
             .uri("/api/messages")
             .append_header((header::AUTHORIZATION, "Bearer token"))
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_client_error());
     }
 
     #[actix_web::test]
     async fn test_messages() {
         let app = App::new().configure(make_config().await.unwrap());
-        let app = test::init_service(app).await;
+        let service = test::init_service(app).await;
 
         let req = TestRequest::get()
             .uri("/api/messages")
             .append_header((header::AUTHORIZATION, "Bearer token"))
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_success());
     }
 
     #[actix_web::test]
     async fn test_mailboxes() {
         let app = App::new().configure(make_config().await.unwrap());
-        let app = test::init_service(app).await;
+        let service = test::init_service(app).await;
 
         let req = TestRequest::get()
             .uri("/api/mailboxes")
             .append_header((header::AUTHORIZATION, "Bearer token"))
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_success());
     }
 
     #[actix_web::test]
     async fn test_create_single_message() {
         let app = App::new().configure(make_config().await.unwrap());
-        let app = test::init_service(app).await;
+        let service = test::init_service(app).await;
 
         let req = TestRequest::post()
             .uri("/api/messages")
@@ -340,14 +340,14 @@ mod tests {
 }"#,
             )
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_success());
     }
 
     #[actix_web::test]
     async fn test_create_multiple_messages() {
         let app = App::new().configure(make_config().await.unwrap());
-        let app = test::init_service(app).await;
+        let service = test::init_service(app).await;
 
         let req = TestRequest::post()
             .uri("/api/messages")
@@ -364,14 +364,14 @@ mod tests {
 }]"#,
             )
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_success());
     }
 
     #[actix_web::test]
     async fn test_update_messages() {
         let app = App::new().configure(make_config().await.unwrap());
-        let app = test::init_service(app).await;
+        let service = test::init_service(app).await;
 
         let req = TestRequest::put()
             .uri("/api/messages?states=unread")
@@ -379,20 +379,20 @@ mod tests {
             .append_header(header::ContentType::json())
             .set_payload(r#"{"new_state": "read"}"#)
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_success());
     }
 
     #[actix_web::test]
     async fn test_delete_messages() {
         let app = App::new().configure(make_config().await.unwrap());
-        let app = test::init_service(app).await;
+        let service = test::init_service(app).await;
 
         let req = TestRequest::delete()
             .uri("/api/messages?states=unread")
             .append_header((header::AUTHORIZATION, "Bearer token"))
             .to_request();
-        let res = call_service(&app, req).await;
+        let res = call_service(&service, req).await;
         assert!(res.status().is_success());
     }
 }
