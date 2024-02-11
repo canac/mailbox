@@ -116,100 +116,64 @@ mod tests {
 
     #[test]
     fn test_matches_all() {
-        assert_eq!(MessageFilter::new().matches_all(), true);
-        assert_eq!(MessageFilter::new().with_ids(vec![1]).matches_all(), false);
-        assert_eq!(
-            MessageFilter::new()
-                .with_mailbox("foo".try_into().unwrap())
-                .matches_all(),
-            false
-        );
-        assert_eq!(
-            MessageFilter::new()
-                .with_states(vec![State::Unread])
-                .matches_all(),
-            false
-        );
+        assert!(MessageFilter::new().matches_all());
+        assert!(!MessageFilter::new().with_ids(vec![1]).matches_all());
+        assert!(!MessageFilter::new()
+            .with_mailbox("foo".try_into().unwrap())
+            .matches_all());
+        assert!(!MessageFilter::new()
+            .with_states(vec![State::Unread])
+            .matches_all());
     }
 
     #[test]
     fn test_matches_message_empty_filter() {
         let message = get_message();
-        assert_eq!(MessageFilter::new().matches_message(&message), true);
+        assert!(MessageFilter::new().matches_message(&message));
     }
 
     #[test]
     fn test_matches_message_id_filter() {
         let message = get_message();
-        assert_eq!(
-            MessageFilter::new()
-                .with_ids(vec![1])
-                .matches_message(&message),
-            true
-        );
-        assert_eq!(
-            MessageFilter::new()
-                .with_ids(vec![1, 2])
-                .matches_message(&message),
-            true
-        );
-        assert_eq!(
-            MessageFilter::new()
-                .with_ids(vec![2])
-                .matches_message(&message),
-            false
-        );
+        assert!(MessageFilter::new()
+            .with_ids(vec![1])
+            .matches_message(&message));
+        assert!(MessageFilter::new()
+            .with_ids(vec![1, 2])
+            .matches_message(&message));
+        assert!(!MessageFilter::new()
+            .with_ids(vec![2])
+            .matches_message(&message));
     }
 
     #[test]
     fn test_matches_message_mailbox_filter() {
         let message = get_message();
-        assert_eq!(
-            MessageFilter::new()
-                .with_mailbox("parent".try_into().unwrap())
-                .matches_message(&message),
-            true
-        );
-        assert_eq!(
-            MessageFilter::new()
-                .with_mailbox("parent/child".try_into().unwrap())
-                .matches_message(&message),
-            true
-        );
-        assert_eq!(
-            MessageFilter::new()
-                .with_mailbox("parent/child2".try_into().unwrap())
-                .matches_message(&message),
-            false
-        );
-        assert_eq!(
-            MessageFilter::new()
-                .with_mailbox("parent/child/grandchild".try_into().unwrap())
-                .matches_message(&message),
-            false
-        );
+        assert!(MessageFilter::new()
+            .with_mailbox("parent".try_into().unwrap())
+            .matches_message(&message));
+        assert!(MessageFilter::new()
+            .with_mailbox("parent/child".try_into().unwrap())
+            .matches_message(&message));
+        assert!(!MessageFilter::new()
+            .with_mailbox("parent/child2".try_into().unwrap())
+            .matches_message(&message));
+        assert!(!MessageFilter::new()
+            .with_mailbox("parent/child/grandchild".try_into().unwrap())
+            .matches_message(&message));
     }
 
     #[test]
     fn test_matches_message_state_filter() {
         let message = get_message();
-        assert_eq!(
-            MessageFilter::new()
-                .with_states(vec![State::Unread])
-                .matches_message(&message),
-            true
-        );
-        assert_eq!(
-            MessageFilter::new()
-                .with_states(vec![State::Unread, State::Read])
-                .matches_message(&message),
-            true
-        );
-        assert_eq!(
-            MessageFilter::new()
-                .with_states(vec![State::Read])
-                .matches_message(&message),
-            false
-        );
+        assert!(MessageFilter::new()
+            .with_states(vec![State::Unread])
+            .matches_message(&message));
+        assert!(MessageFilter::new()
+            .with_states(vec![State::Unread, State::Read])
+            .matches_message(&message));
+        assert!(!MessageFilter::new()
+            .with_states(vec![State::Read])
+            .matches_message(&message));
     }
 }

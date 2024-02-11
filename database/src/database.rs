@@ -280,9 +280,10 @@ mod tests {
 
     // Return a database URL for each test
     fn get_db_url() -> String {
-        std::env::var_os("TEST_DB_URL")
-            .map(|url| url.into_string().unwrap())
-            .unwrap_or(format!("postgresql://postgres@localhost/mailbox-test"))
+        std::env::var_os("TEST_DB_URL").map_or(
+            "postgresql://postgres@localhost/mailbox-test".to_string(),
+            |url| url.into_string().unwrap(),
+        )
     }
 
     // Helper for creating a NewMessage from its parts
