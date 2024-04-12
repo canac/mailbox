@@ -8,7 +8,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: printf "'AUTH_TOKEN' = '${{ secrets.AUTH_TOKEN }}'\n'DATABASE_URL' = '${{ secrets.DATABASE_URL }}'\n" http_server > http_server/Secrets.toml
       - name: Install cargo-shuttle
         run: |
