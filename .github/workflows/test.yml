@@ -34,25 +34,13 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - uses: neondatabase/create-branch-action@v4
-        with:
-          project_id: ${{ vars.NEON_PROJECT_ID }}
-          parent: test
-          branch_name: test-${{ matrix.os }}-$GITHUB_SHA-$GITHUB_REF
-          username: ${{ vars.NEON_ROLE }}
-          api_key: ${{ secrets.NEON_API_KEY }}
-        id: create-branch
+      - uses: ikalnytskyi/action-setup-postgres@v5
+        id: postgres
       - uses: actions-rs/cargo@v1
         with:
           command: test
         env:
-          TEST_DB_URL: ${{ steps.create-branch.outputs.db_url }}
-      - uses: neondatabase/delete-branch-action@v3
-        if: always()
-        with:
-          project_id: ${{ vars.NEON_PROJECT_ID }}
-          branch: ${{ steps.create-branch.outputs.branch_id }}
-          api_key: ${{ secrets.NEON_API_KEY }}
+          TEST_DB_URL: ${{ steps.postgres.outputs.connection-uri }}
 
   fmt:
     name: Format
