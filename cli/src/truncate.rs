@@ -1,4 +1,5 @@
 use colored::{ColoredString, Colorize};
+use std::fmt::{self, Display, Formatter};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 type ApplyColor = fn(&str) -> ColoredString;
@@ -74,9 +75,9 @@ impl TruncatedLine {
     }
 }
 
-impl ToString for TruncatedLine {
-    fn to_string(&self) -> String {
-        self.generate()
+impl Display for TruncatedLine {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.generate())
     }
 }
 

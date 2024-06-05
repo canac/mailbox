@@ -67,12 +67,6 @@ where
             .and_then(|index| self.get_items().get(index))
     }
 
-    // Return a mutable reference to the item at the cursor
-    fn get_cursor_item_mut(&mut self) -> Option<&mut Item> {
-        self.get_cursor()
-            .and_then(|index| self.get_items_mut().get_mut(index))
-    }
-
     // Replace the list's items with a new set of items
     fn replace_items(&mut self, items: Vec<Item>) {
         let cursor_candidates = match self.get_cursor() {
