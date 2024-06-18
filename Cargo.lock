@@ -499,16 +499,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "clap_complete_fig"
-version = "4.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3af28956330989baa428ed4d3471b853715d445c62de21b67292e22cf8a41fa"
-dependencies = [
- "clap",
- "clap_complete",
-]
-
-[[package]]
 name = "clap_derive"
 version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1532,7 +1522,6 @@ dependencies = [
  "chrono-humanize",
  "clap",
  "clap_complete",
- "clap_complete_fig",
  "clap_mangen",
  "colored",
  "crossterm",
