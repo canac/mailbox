@@ -2,7 +2,7 @@ use crate::cli::ImportMessageFormat;
 use crate::config::Config;
 use anyhow::{Context, Result};
 use csv::ReaderBuilder;
-use database::{Database, Message, NewMessage};
+use database::{Backend, Database, Message, NewMessage};
 
 // Import messages from stdin lines
 pub fn read_messages_stdin<Stdin>(stdin: Stdin, format: ImportMessageFormat) -> Vec<NewMessage>
@@ -57,8 +57,8 @@ where
 
 // Add multiple messages to the database
 #[allow(clippy::module_name_repetitions)]
-pub async fn import_messages(
-    db: &mut Database,
+pub async fn import_messages<B: Backend>(
+    db: &mut Database<B>,
     config: &Option<Config>,
     new_messages: Vec<NewMessage>,
 ) -> Result<Vec<Message>> {

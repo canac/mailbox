@@ -17,8 +17,9 @@ pub enum Override {
 pub enum DatabaseProvider {
     #[default]
     Sqlite,
-    Postgres {
+    Http {
         url: String,
+        token: Option<String>,
     },
 }
 
@@ -91,22 +92,44 @@ mod tests {
     }
 
     #[test]
-    fn test_load_provider() {
+    fn test_load_provider_sqlite() {
         assert_eq!(
             load_config("[database]\nprovider = 'sqlite'\n")
                 .unwrap()
                 .database,
             DatabaseProvider::Sqlite
         );
-        assert!(load_config("[database]\nprovider = 'postgres'\n").is_err());
+    }
+
+    #[test]
+    fn test_load_provider_http() {
+        assert!(load_config("[database]\nprovider = 'http'\n").is_err());
+
         assert_eq!(
-            load_config("[database]\nprovider = 'postgres'\nurl = 'postgres://'\n")
+            load_config("[database]\nprovider = 'http'\nurl = 'http://localhost:8080'\n")
                 .unwrap()
                 .database,
-            DatabaseProvider::Postgres {
-                url: String::from("postgres://")
+            DatabaseProvider::Http {
+                url: String::from("http://localhost:8080"),
+                token: None
             }
         );
+
+        assert_eq!(
+            load_config(
+                "[database]\nprovider = 'http'\nurl = 'http://localhost:8080'\ntoken = 'foo'"
+            )
+            .unwrap()
+            .database,
+            DatabaseProvider::Http {
+                url: String::from("http://localhost:8080"),
+                token: Some(String::from("foo"))
+            }
+        );
+    }
+
+    #[test]
+    fn test_load_provider_unknown() {
         assert!(load_config("[database]\nprovider = 'foo'\n").is_err());
     }
 

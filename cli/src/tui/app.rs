@@ -3,7 +3,7 @@ use super::navigable_list::{Keyed, NavigableList};
 use super::tree_list::{Depth, TreeList};
 use super::worker::{spawn, Receiver, Request, Response, Sender};
 use anyhow::Result;
-use database::{Database, Message, MessageFilter, State};
+use database::{Backend, Database, MailboxInfo, Message, MessageFilter, State};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
@@ -57,8 +57,8 @@ pub struct App {
 }
 
 impl App {
-    pub async fn new(
-        db: Database,
+    pub async fn new<B: Backend + Send + Sync + 'static>(
+        db: Database<B>,
         initial_mailbox: Option<database::Mailbox>,
         initial_states: Vec<State>,
     ) -> Result<App> {
@@ -110,11 +110,13 @@ impl App {
     }
 
     // Generate the mailboxes list
-    pub(crate) fn build_mailbox_list(
-        mailbox_sizes: Vec<(database::Mailbox, usize)>,
-    ) -> Vec<Mailbox> {
+    pub(crate) fn build_mailbox_list(mailbox_sizes: Vec<MailboxInfo>) -> Vec<Mailbox> {
         let mut mailboxes = HashMap::<database::Mailbox, Mailbox>::new();
-        for (mailbox, count) in mailbox_sizes {
+        for MailboxInfo {
+            name: mailbox,
+            message_count: count,
+        } in mailbox_sizes
+        {
             for (index, full_name) in mailbox.iter_ancestors().enumerate() {
                 // Children mailboxes contribute to the size of their parents
                 mailboxes
@@ -270,13 +272,34 @@ mod tests {
     #[test]
     fn test_build_mailbox_list() -> Result<()> {
         let mailboxes = vec![
-            ("a".try_into()?, 1),
-            ("a/b".try_into()?, 1),
-            ("c".try_into()?, 1),
-            ("b".try_into()?, 1),
-            ("b/d/e".try_into()?, 1),
-            ("b/c".try_into()?, 1),
-            ("b/d".try_into()?, 1),
+            MailboxInfo {
+                name: "a".try_into()?,
+                message_count: 1,
+            },
+            MailboxInfo {
+                name: "a/b".try_into()?,
+                message_count: 1,
+            },
+            MailboxInfo {
+                name: "c".try_into()?,
+                message_count: 1,
+            },
+            MailboxInfo {
+                name: "b".try_into()?,
+                message_count: 1,
+            },
+            MailboxInfo {
+                name: "b/d/e".try_into()?,
+                message_count: 1,
+            },
+            MailboxInfo {
+                name: "b/c".try_into()?,
+                message_count: 1,
+            },
+            MailboxInfo {
+                name: "b/d".try_into()?,
+                message_count: 1,
+            },
         ];
         assert_eq!(
             App::build_mailbox_list(mailboxes),

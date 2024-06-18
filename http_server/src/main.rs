@@ -1,23 +1,21 @@
 #![deny(clippy::pedantic)]
 
-mod filter;
+mod cli;
 
-use crate::filter::Filter;
 use actix_web::dev::{Service, ServiceResponse};
 use actix_web::error::{ErrorBadRequest, ErrorInternalServerError};
 use actix_web::http::header::{HeaderValue, ACCESS_CONTROL_ALLOW_ORIGIN};
 use actix_web::middleware::DefaultHeaders;
 use actix_web::web::{self, Data, Json, Query, ServiceConfig};
-use actix_web::{delete, get, post, put, HttpResponse, Result};
-use anyhow::{anyhow, Context};
-use database::{Database, Engine, Mailbox, Message, MessageFilter, NewMessage, State};
+use actix_web::{delete, get, post, put, App, HttpResponse, HttpServer, Result};
+use anyhow::Context;
+use clap::Parser;
+use cli::Cli;
+use database::{Database, MailboxInfo, Message, MessageFilter, NewMessage, SqliteBackend, State};
 use serde::Deserialize;
-use shuttle_actix_web::ShuttleActixWeb;
-use shuttle_secrets::SecretStore;
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
-type AppData = Arc<Database>;
+type AppData = Arc<Database<SqliteBackend>>;
 
 #[derive(Deserialize)]
 #[serde(untagged)]
@@ -29,21 +27,22 @@ enum CreateMessage {
 #[get("/mailboxes")]
 async fn read_mailboxes(
     data: Data<AppData>,
-    filter: Query<Filter>,
-) -> Result<Json<BTreeMap<Mailbox, usize>>> {
+    filter: Query<MessageFilter>,
+) -> Result<Json<Vec<MailboxInfo>>> {
     let mailboxes = data
-        .load_mailboxes(filter.into_inner().try_into().map_err(ErrorBadRequest)?)
+        .load_mailboxes(filter.into_inner())
         .await
-        .map_err(ErrorInternalServerError)?
-        .into_iter()
-        .collect();
+        .map_err(ErrorInternalServerError)?;
     Ok(Json(mailboxes))
 }
 
 #[get("/messages")]
-async fn read_messages(data: Data<AppData>, filter: Query<Filter>) -> Result<Json<Vec<Message>>> {
+async fn read_messages(
+    data: Data<AppData>,
+    filter: Query<MessageFilter>,
+) -> Result<Json<Vec<Message>>> {
     let messages = data
-        .load_messages(filter.into_inner().try_into().map_err(ErrorBadRequest)?)
+        .load_messages(filter.into_inner())
         .await
         .map_err(ErrorInternalServerError)?;
     Ok(Json(messages))
@@ -74,20 +73,22 @@ struct UpdateMessages {
 #[put("/messages")]
 async fn update_messages(
     data: Data<AppData>,
-    filter: Query<Filter>,
+    filter: Query<MessageFilter>,
     new_state: Json<UpdateMessages>,
 ) -> Result<Json<Vec<Message>>> {
-    let message_filter = filter.into_inner().try_into().map_err(ErrorBadRequest)?;
     let messages = data
-        .change_state(message_filter, new_state.into_inner().new_state)
+        .change_state(filter.into_inner(), new_state.into_inner().new_state)
         .await
         .map_err(ErrorInternalServerError)?;
     Ok(Json(messages))
 }
 
 #[delete("/messages")]
-async fn delete_messages(data: Data<AppData>, filter: Query<Filter>) -> Result<Json<Vec<Message>>> {
-    let message_filter: MessageFilter = filter.into_inner().try_into().map_err(ErrorBadRequest)?;
+async fn delete_messages(
+    data: Data<AppData>,
+    filter: Query<MessageFilter>,
+) -> Result<Json<Vec<Message>>> {
+    let message_filter: MessageFilter = filter.into_inner();
     if message_filter.matches_all() {
         return Err(ErrorBadRequest("Filter is required"));
     }
@@ -98,23 +99,27 @@ async fn delete_messages(data: Data<AppData>, filter: Query<Filter>) -> Result<J
     Ok(Json(messages))
 }
 
-async fn get_config(
-    database_engine: Engine,
-    auth_token: String,
-) -> std::result::Result<
-    impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static,
-    shuttle_runtime::Error,
-> {
-    let database = Arc::new(Database::new(database_engine).await?);
-    let auth_header = HeaderValue::from_str(format!("Bearer {auth_token}").as_str())
-        .context("Failed to parse header")?;
-
-    let config = move |cfg: &mut ServiceConfig| {
-        let app_data = Data::new(database);
+// Return a config factory function that can be passed to App::configure to setup all the data,
+// routes and middleware for the app
+fn get_config_factory(
+    backend: SqliteBackend,
+    auth_token: Option<&str>,
+) -> anyhow::Result<impl FnOnce(&mut ServiceConfig) + Clone> {
+    let db = Arc::new(Database::new(backend));
+    let auth_header = auth_token
+        .map(|token| {
+            HeaderValue::from_str(format!("Bearer {token}").as_str())
+                .context("Failed to parse header")
+        })
+        .transpose()?;
+    let config_factory = |cfg: &mut ServiceConfig| {
+        let app_data = Data::new(db);
         cfg.service(
-            web::scope("/api")
+            web::scope("")
                 .wrap_fn(move |req, srv| {
-                    if req.headers().get("Authorization") == Some(&auth_header) {
+                    if auth_header.is_none()
+                        || req.headers().get("Authorization") == auth_header.as_ref()
+                    {
                         srv.call(req)
                     } else {
                         Box::pin(async {
@@ -133,57 +138,56 @@ async fn get_config(
         );
     };
 
-    Ok(config)
+    Ok(config_factory)
 }
 
-#[shuttle_runtime::main]
-async fn actix_web(
-    #[shuttle_secrets::Secrets] secret_store: SecretStore,
-) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
-    let database_url = secret_store
-        .get("DATABASE_URL")
-        .ok_or_else(|| anyhow!("Missing DATABASE_URL secret"))?;
-    let auth_token = secret_store
-        .get("AUTH_TOKEN")
-        .ok_or_else(|| anyhow!("Missing AUTH_TOKEN secret"))?;
+#[actix_web::main]
+async fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
 
-    let config = get_config(Engine::Postgres(database_url), auth_token).await?;
-    Ok(config.into())
+    let backend = SqliteBackend::new(cli.db_file).await?;
+    let config_factory = get_config_factory(backend, cli.token.as_deref())?;
+    HttpServer::new(move || App::new().configure(config_factory.clone()))
+        .bind((if cli.expose { "0.0.0.0" } else { "127.0.0.1" }, cli.port))?
+        .run()
+        .await?;
+
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use actix_web::http::header;
-    use actix_web::test::{self, call_service, TestRequest};
+    use actix_web::test::{call_service, init_service, TestRequest};
     use actix_web::App;
 
     use super::*;
 
-    async fn make_config() -> std::result::Result<
-        impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static,
-        shuttle_runtime::Error,
-    > {
-        let auth_token = String::from("token");
-        get_config(Engine::Sqlite(None), auth_token).await
+    async fn make_config_factory() -> anyhow::Result<impl FnOnce(&mut ServiceConfig)> {
+        get_config_factory(SqliteBackend::new_test().await?, None)
     }
 
     #[actix_web::test]
     async fn test_missing_authorization_header() {
-        let app = App::new().configure(make_config().await.unwrap());
-        let service = test::init_service(app).await;
+        let config_factory =
+            get_config_factory(SqliteBackend::new_test().await.unwrap(), Some("token")).unwrap();
+        let app = App::new().configure(config_factory);
+        let service = init_service(app).await;
 
-        let req = TestRequest::get().uri("/api/messages").to_request();
+        let req = TestRequest::get().uri("/messages").to_request();
         let res = call_service(&service, req).await;
         assert!(res.status().is_client_error());
     }
 
     #[actix_web::test]
     async fn test_invalid_authorization_header() {
-        let app = App::new().configure(make_config().await.unwrap());
-        let service = test::init_service(app).await;
+        let config_factory =
+            get_config_factory(SqliteBackend::new_test().await.unwrap(), Some("token")).unwrap();
+        let app = App::new().configure(config_factory);
+        let service = init_service(app).await;
 
         let req = TestRequest::get()
-            .uri("/api/messages")
+            .uri("/messages")
             .append_header((header::AUTHORIZATION, "Bearer invalid"))
             .to_request();
         let res = call_service(&service, req).await;
@@ -191,14 +195,39 @@ mod tests {
     }
 
     #[actix_web::test]
-    async fn test_cors_header() {
-        let app = App::new().configure(make_config().await.unwrap());
-        let service = test::init_service(app).await;
+    async fn test_extraneous_authorization_header() {
+        let app = App::new().configure(make_config_factory().await.unwrap());
+        let service = init_service(app).await;
 
         let req = TestRequest::get()
-            .uri("/api/messages")
+            .uri("/messages")
             .append_header((header::AUTHORIZATION, "Bearer token"))
             .to_request();
+        let res = call_service(&service, req).await;
+        assert!(res.status().is_success());
+    }
+
+    #[actix_web::test]
+    async fn test_valid_authorization_header() {
+        let config_factory =
+            get_config_factory(SqliteBackend::new_test().await.unwrap(), Some("token")).unwrap();
+        let app = App::new().configure(config_factory);
+        let service = init_service(app).await;
+
+        let req = TestRequest::get()
+            .uri("/messages")
+            .append_header((header::AUTHORIZATION, "Bearer token"))
+            .to_request();
+        let res = call_service(&service, req).await;
+        assert!(res.status().is_success());
+    }
+
+    #[actix_web::test]
+    async fn test_cors_header() {
+        let app = App::new().configure(make_config_factory().await.unwrap());
+        let service = init_service(app).await;
+
+        let req = TestRequest::get().uri("/messages").to_request();
         let res = call_service(&service, req).await;
         assert!(res.status().is_success());
         assert_eq!(res.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(), "*");
@@ -206,66 +235,51 @@ mod tests {
 
     #[actix_web::test]
     async fn test_filter_ids() {
-        let app = App::new().configure(make_config().await.unwrap());
-        let service = test::init_service(app).await;
+        let app = App::new().configure(make_config_factory().await.unwrap());
+        let service = init_service(app).await;
 
-        let req = TestRequest::get()
-            .uri("/api/messages?ids=1")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
-            .to_request();
+        let req = TestRequest::get().uri("/messages?ids=1").to_request();
         let res = call_service(&service, req).await;
         assert!(res.status().is_success());
 
-        let req = TestRequest::get()
-            .uri("/api/messages?ids=1,2,3")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
-            .to_request();
+        let req = TestRequest::get().uri("/messages?ids=1,2,3").to_request();
         let res = call_service(&service, req).await;
         assert!(res.status().is_success());
 
-        let req = TestRequest::get()
-            .uri("/api/messages?ids=foo")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
-            .to_request();
+        let req = TestRequest::get().uri("/messages?ids=1,2,a").to_request();
         let res = call_service(&service, req).await;
         assert!(res.status().is_client_error());
     }
 
     #[actix_web::test]
     async fn test_filter_mailbox() {
-        let app = App::new().configure(make_config().await.unwrap());
-        let service = test::init_service(app).await;
+        let app = App::new().configure(make_config_factory().await.unwrap());
+        let service = init_service(app).await;
 
-        let req = TestRequest::get()
-            .uri("/api/messages?mailbox=foo")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
-            .to_request();
+        let req = TestRequest::get().uri("/messages?mailbox=foo").to_request();
         let res = call_service(&service, req).await;
         assert!(res.status().is_success());
     }
 
     #[actix_web::test]
     async fn test_filter_states() {
-        let app = App::new().configure(make_config().await.unwrap());
-        let service = test::init_service(app).await;
+        let app = App::new().configure(make_config_factory().await.unwrap());
+        let service = init_service(app).await;
 
         let req = TestRequest::get()
-            .uri("/api/messages?states=unread")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
+            .uri("/messages?states=unread")
             .to_request();
         let res = call_service(&service, req).await;
         assert!(res.status().is_success());
 
         let req = TestRequest::get()
-            .uri("/api/messages?states=read,archived")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
+            .uri("/messages?states=read,archived")
             .to_request();
         let res = call_service(&service, req).await;
         assert!(res.status().is_success());
 
         let req = TestRequest::get()
-            .uri("/api/messages?states=unread,foo")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
+            .uri("/messages?states=unread,foo")
             .to_request();
         let res = call_service(&service, req).await;
         assert!(res.status().is_client_error());
@@ -273,12 +287,11 @@ mod tests {
 
     #[actix_web::test]
     async fn test_filter_multiple() {
-        let app = App::new().configure(make_config().await.unwrap());
-        let service = test::init_service(app).await;
+        let app = App::new().configure(make_config_factory().await.unwrap());
+        let service = init_service(app).await;
 
         let req = TestRequest::get()
-            .uri("/api/messages?ids=1,2,3&mailbox=foo&states=unread,read")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
+            .uri("/messages?ids=1,2,3&mailbox=foo&states=unread,read")
             .to_request();
         let res = call_service(&service, req).await;
         assert!(res.status().is_success());
@@ -286,51 +299,41 @@ mod tests {
 
     #[actix_web::test]
     async fn test_delete_no_filter() {
-        let app = App::new().configure(make_config().await.unwrap());
-        let service = test::init_service(app).await;
+        let app = App::new().configure(make_config_factory().await.unwrap());
+        let service = init_service(app).await;
 
-        let req = TestRequest::delete()
-            .uri("/api/messages")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
-            .to_request();
+        let req = TestRequest::delete().uri("/messages").to_request();
         let res = call_service(&service, req).await;
         assert!(res.status().is_client_error());
     }
 
     #[actix_web::test]
     async fn test_messages() {
-        let app = App::new().configure(make_config().await.unwrap());
-        let service = test::init_service(app).await;
+        let app = App::new().configure(make_config_factory().await.unwrap());
+        let service = init_service(app).await;
 
-        let req = TestRequest::get()
-            .uri("/api/messages")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
-            .to_request();
+        let req = TestRequest::get().uri("/messages").to_request();
         let res = call_service(&service, req).await;
         assert!(res.status().is_success());
     }
 
     #[actix_web::test]
     async fn test_mailboxes() {
-        let app = App::new().configure(make_config().await.unwrap());
-        let service = test::init_service(app).await;
+        let app = App::new().configure(make_config_factory().await.unwrap());
+        let service = init_service(app).await;
 
-        let req = TestRequest::get()
-            .uri("/api/mailboxes")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
-            .to_request();
+        let req = TestRequest::get().uri("/mailboxes").to_request();
         let res = call_service(&service, req).await;
         assert!(res.status().is_success());
     }
 
     #[actix_web::test]
     async fn test_create_single_message() {
-        let app = App::new().configure(make_config().await.unwrap());
-        let service = test::init_service(app).await;
+        let app = App::new().configure(make_config_factory().await.unwrap());
+        let service = init_service(app).await;
 
         let req = TestRequest::post()
-            .uri("/api/messages")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
+            .uri("/messages")
             .append_header(header::ContentType::json())
             .set_payload(
                 r#"{
@@ -346,12 +349,11 @@ mod tests {
 
     #[actix_web::test]
     async fn test_create_multiple_messages() {
-        let app = App::new().configure(make_config().await.unwrap());
-        let service = test::init_service(app).await;
+        let app = App::new().configure(make_config_factory().await.unwrap());
+        let service = init_service(app).await;
 
         let req = TestRequest::post()
-            .uri("/api/messages")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
+            .uri("/messages")
             .append_header(header::ContentType::json())
             .set_payload(
                 r#"[{
@@ -370,12 +372,11 @@ mod tests {
 
     #[actix_web::test]
     async fn test_update_messages() {
-        let app = App::new().configure(make_config().await.unwrap());
-        let service = test::init_service(app).await;
+        let app = App::new().configure(make_config_factory().await.unwrap());
+        let service = init_service(app).await;
 
         let req = TestRequest::put()
-            .uri("/api/messages?states=unread")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
+            .uri("/messages?states=unread")
             .append_header(header::ContentType::json())
             .set_payload(r#"{"new_state": "read"}"#)
             .to_request();
@@ -385,12 +386,11 @@ mod tests {
 
     #[actix_web::test]
     async fn test_delete_messages() {
-        let app = App::new().configure(make_config().await.unwrap());
-        let service = test::init_service(app).await;
+        let app = App::new().configure(make_config_factory().await.unwrap());
+        let service = init_service(app).await;
 
         let req = TestRequest::delete()
-            .uri("/api/messages?states=unread")
-            .append_header((header::AUTHORIZATION, "Bearer token"))
+            .uri("/messages?states=unread")
             .to_request();
         let res = call_service(&service, req).await;
         assert!(res.status().is_success());

@@ -1,8 +1,9 @@
 use anyhow::anyhow;
 use sea_query::{enum_def, Value};
 use serde::{Deserialize, Serialize};
-use sqlx::{any::AnyRow, FromRow, Row};
+use sqlx::{sqlite::SqliteRow, FromRow, Row};
 use std::fmt::{self, Display, Formatter};
+use std::str::FromStr;
 
 use crate::Mailbox;
 
@@ -16,15 +17,11 @@ pub enum State {
 
 impl Display for State {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                State::Unread => "*",
-                State::Read => " ",
-                State::Archived => "-",
-            }
-        )
+        f.write_str(match self {
+            State::Unread => "unread",
+            State::Read => "read",
+            State::Archived => "archived",
+        })
     }
 }
 
@@ -36,6 +33,19 @@ impl TryFrom<i32> for State {
             0 => Ok(State::Unread),
             1 => Ok(State::Read),
             2 => Ok(State::Archived),
+            _ => Err(anyhow!("Invalid message state {}", value)),
+        }
+    }
+}
+
+impl FromStr for State {
+    type Err = anyhow::Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "unread" => Ok(State::Unread),
+            "read" => Ok(State::Read),
+            "archived" => Ok(State::Archived),
             _ => Err(anyhow!("Invalid message state {}", value)),
         }
     }
@@ -59,7 +69,7 @@ impl From<State> for Value {
 
 pub type Id = i32;
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[enum_def]
 pub struct Message {
     pub id: Id,
@@ -69,8 +79,8 @@ pub struct Message {
     pub state: State,
 }
 
-impl FromRow<'_, AnyRow> for Message {
-    fn from_row(row: &AnyRow) -> sqlx::Result<Self> {
+impl FromRow<'_, SqliteRow> for Message {
+    fn from_row(row: &SqliteRow) -> sqlx::Result<Self> {
         Ok(Self {
             id: row.try_get("id")?,
             timestamp: row.try_get("timestamp")?,

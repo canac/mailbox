@@ -1,5 +1,5 @@
 use super::monotonic_counter::MonotonicCounter;
-use database::{Database, Mailbox, Message, MessageFilter, State};
+use database::{Backend, Database, MailboxInfo, Message, MessageFilter, State};
 use std::sync::mpsc::{self, channel};
 use std::sync::Arc;
 use std::thread;
@@ -17,7 +17,7 @@ pub enum Request {
 
 pub enum Response {
     LoadMessages(Vec<Message>),
-    LoadMailboxes(Vec<(Mailbox, usize)>),
+    LoadMailboxes(Vec<MailboxInfo>),
     ChangeMessageStates,
     DeleteMessages,
 }
@@ -28,7 +28,7 @@ pub type Receiver = mpsc::Receiver<Response>;
 // Spawn an worker for asynchronously interacting with the database
 // It receives requests from a channel, runs the corresponding database query asynchronously,
 // and when the response is ready, sends it on another channel
-pub fn spawn(db: Arc<Database>) -> (Sender, Receiver) {
+pub fn spawn<B: Backend + Send + Sync + 'static>(db: Arc<Database<B>>) -> (Sender, Receiver) {
     let (tx_req, rx_req) = channel::<Request>();
     let (tx_res, rx_res) = channel::<Response>();
 
@@ -38,7 +38,7 @@ pub fn spawn(db: Arc<Database>) -> (Sender, Receiver) {
     thread::spawn(move || loop {
         let Ok(req) = rx_req.recv() else { break };
         let tx_res = tx_res.clone();
-        let db: Arc<Database> = db.clone();
+        let db = db.clone();
         let message_counter = message_counter.clone();
         let mailbox_counter = mailbox_counter.clone();
         handle.spawn(async move {

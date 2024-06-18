@@ -11,9 +11,10 @@ license = { workspace = true }
 [dependencies]
 actix-web = "4.3.1"
 anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive", "env"] }
 database = { path = "../database" }
 serde = { workspace = true }
-shuttle-actix-web = "0.40.0"
-shuttle-runtime = "0.40.0"
-shuttle-secrets = "0.40.0"
 tokio = { workspace = true }
+
+[dev-dependencies]
+database = { path = "../database", features = ["test-utils"] }

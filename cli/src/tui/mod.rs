@@ -16,7 +16,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use database::{Database, Mailbox, Message, State};
+use database::{Backend as DbBackend, Database, Mailbox, Message, State};
 use linkify::{LinkFinder, LinkKind};
 use ratatui::{
     backend::{Backend, CrosstermBackend},
@@ -29,8 +29,8 @@ use ratatui::{
 use std::io;
 use std::time::{Duration, Instant};
 
-pub async fn run(
-    db: Database,
+pub async fn run<B: DbBackend + Send + Sync + 'static>(
+    db: Database<B>,
     initial_mailbox: Option<Mailbox>,
     initial_states: Vec<State>,
 ) -> Result<()> {

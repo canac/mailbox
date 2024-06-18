@@ -19,7 +19,7 @@ use crate::import::read_messages_stdin;
 use anyhow::{bail, Context, Result};
 use clap::Parser;
 use cli::{ConfigSubcommand, ViewMessageState};
-use database::{Database, MessageFilter, NewMessage, State};
+use database::{Backend, Database, HttpBackend, MessageFilter, NewMessage, SqliteBackend, State};
 use directories::ProjectDirs;
 use import::import_messages;
 use message_formatter::MessageFormatter;
@@ -31,24 +31,6 @@ use std::path::PathBuf;
 fn get_project_dirs() -> Result<ProjectDirs> {
     directories::ProjectDirs::from("com", "canac", "mailbox")
         .context("Couldn't determine application directory")
-}
-
-// Load the database connection, creating the database file's parent directories if necessary
-async fn load_database(config: &Option<Config>) -> Result<Database> {
-    let database = config
-        .as_ref()
-        .map(|config| config.database.clone())
-        .unwrap_or_default();
-    Database::new(match database {
-        config::DatabaseProvider::Sqlite => {
-            let project_dirs = get_project_dirs()?;
-            let data_dir = project_dirs.data_local_dir();
-            create_dir_all(data_dir).context("Couldn't create data directory")?;
-            database::Engine::Sqlite(Some(data_dir.join("mailbox.db")))
-        }
-        config::DatabaseProvider::Postgres { url } => database::Engine::Postgres(url),
-    })
-    .await
 }
 
 // Return the path of the configuration file, creating its parent directories if necessary
@@ -131,18 +113,12 @@ fn states_from_view_message_state(state: ViewMessageState) -> Vec<State> {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    // Fix broken pipe panics
-    sigpipe::reset();
-
-    let config = load_config()?;
-    let mut db = load_database(&config).await?;
+async fn run<B: Backend + Send + Sync + 'static>(
+    config: Option<Config>,
+    mut db: Database<B>,
+) -> Result<()> {
     let cli = Cli::parse();
     let formatter = create_formatter(&cli);
-
-    // Let us control the coloring instead of colored
-    colored::control::set_override(true);
 
     match cli.command {
         Command::Add {
@@ -229,6 +205,37 @@ async fn main() -> Result<()> {
             ConfigSubcommand::Edit => edit_config()?,
         },
     };
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Fix broken pipe panics
+    sigpipe::reset();
+
+    // Let us control the coloring instead of colored
+    colored::control::set_override(true);
+
+    let config = load_config()?;
+    let database = config
+        .as_ref()
+        .map(|config| config.database.clone())
+        .unwrap_or_default();
+    match database {
+        config::DatabaseProvider::Sqlite => {
+            let project_dirs = get_project_dirs()?;
+            let backend =
+                SqliteBackend::new(project_dirs.data_local_dir().join("mailbox.db")).await?;
+            let db = Database::new(backend);
+            run(config, db).await?;
+        }
+        config::DatabaseProvider::Http { url, token } => {
+            let backend = HttpBackend::new(url, token)?;
+            let db = Database::new(backend);
+            run(config, db).await?;
+        }
+    }
 
     Ok(())
 }

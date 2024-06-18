@@ -1,6 +1,52 @@
 # http_server
 
-The mailbox `http_server` package is an HTTP server written in [Actix](https://actix.rs/) and deployed with [Shuttle](https://shuttle.rs/). It connects to a Postgres mailbox database and allows you to interact with the mailbox through a REST API instead of a CLI, which is preferable in some situations. For example, suppose you have a script that runs hourly in a Cloudflare Worker that scrapes a webpage for new data. That script can create messages based simply by making calls to a REST endpoint.
+The `http_server` CLI starts an HTTP server that provides a REST API interface for interacting with a mailbox. It stores the messages in an SQLite database. The `mailbox` CLI can interact with this API server as [documented here](../README.md#using-a-remote-database). Another other application can use the same REST interface to read and update messages. For example, suppose you have a script that runs hourly in a Cloudflare Worker that scrapes a webpage for new data. That script can create messages based simply by making calls to the REST endpoint provided by this server.
+
+## Getting started
+
+```sh
+$ http_server
+$ curl http://localhost:8080/messages
+```
+
+## CLI flags
+
+### `--port=<PORT>`
+
+Sets the port that the HTTP server will listen on. The port can also be set with the `$PORT` environment variable.
+
+```sh
+$ http_server --port=9000
+$ curl http://localhost:9000/messages
+```
+
+### `--expose`
+
+Instructs the HTTP server to bind to 0.0.0.0 instead of 127.0.0.1 and accept incoming connections from other machines on the network.
+
+```sh
+$ http_server --expose
+# On another machine using the server machine's IP address
+$ curl http://10.0.0.10:9000/messages
+```
+
+### `--token=<TOKEN>`
+
+Causes the HTTP server to expect an `Authorization: Bearer {token}` header containing this token on all requests. Without this arg, no `Authorization` header is required.
+
+```sh
+$ http_server --token=0a1b2c3de4f5
+$ curl http://localhost:8080/messages -H "Authorization: Bearer 0a1b2c3de4f5"
+```
+
+### `--db_file=<DB_FILE>`
+
+Path to the SQLite database file that the server uses to store the messages
+
+```sh
+$ http_server --db-file=$HOME/messages.db
+$ curl http://localhost:8080/messages
+```
 
 ## REST API
 
@@ -26,7 +72,7 @@ If no filter is provided, all messages will be interacted with.
 
 ### Authorization
 
-All requests must be sent with an `Authorization` header of `Bearer {API_TOKEN}` where `{API_TOKEN}` is your configured API token (see [Running locally](#running-locally) for information on configuring the API token).
+If an [authorization token was specified](#--tokentoken) when starting the server, all requests must be sent with an `Authorization` header of `Bearer {token}` where `{token}` is your configured API token.
 
 ### Message format
 
@@ -50,27 +96,28 @@ Example message:
 }
 ```
 
-### `GET /api/messages`
+### `GET /messages`
 
-Reads messages. Responds with a JSON array of messages matching the optional message filter.
+Reads messages. Responds with a JSON array of messages matching the optional message filter ordered by timestamp descending.
 
-### `GET /api/mailboxes`
+### `GET /mailboxes`
 
-Reads mailbox sizes. Responds with a JSON object where the key is the mailbox name and the value is the number of messages that the mailbox contains. If an optional message filter is provided, only messages that match the filter are counted towards mailbox sizes.
+Reads mailbox sizes. Responds with an array of JSON objects with a `name` key that is the mailbox name and a `message_count` key that is the number of messages that the mailbox contains. The array elements are ordered by the mailbox name ascending. If an optional message filter is provided, only messages that match the filter are counted towards mailbox sizes.
 
 Example response:
 
 ```json
-{
-  "mailbox-1": 5,
-  "mailbox-2": 2,
-  "mailbox-3": 4
-}
+[
+  { "name": "mailbox-1", "message_count": 5 },
+  { "name": "mailbox-2", "message_count": 2 },
+  { "name": "mailbox-2/child", "message_count": 1 },
+  { "name": "mailbox-3", "message_count": 4 }
+]
 ```
 
-### `POST /api/messages`
+### `POST /messages`
 
-Creates new messages. Responds with a JSON array of the created messages. This is the only endpoint that does not accept a message filter. New messages should be posted as JSON in the request body with a `Content-Type` header of `application/json`. The body can either be a single message object or an array of message objects. These are the accepted message object fields:
+Creates new messages. Responds with a JSON array of the created messages ordered by timestamp descending. This is the only endpoint that does not accept a message filter. New messages should be posted as JSON in the request body with a `Content-Type` header of `application/json`. The body can either be a single message object or an array of message objects. These are the accepted message object fields:
 
 - `mailbox` (string): the message's mailbox
 - `content` (string): the message's content
@@ -102,33 +149,16 @@ Example multi-message payload:
 ]
 ```
 
-### `PUT /api/messages`
+### `PUT /messages`
 
-Updates message states. Responds with a JSON array of the updated messages. Only updates messages matching the optional filter. If no filter is provided, all messages are updated. The new message state should be put as a JSON encoded object with a single field `new_state` in the request body with a `Content-Type` header of `application/json`. `new_state` can have the value `unread`, `read`, or `archived`.
+Updates message states. Responds with a JSON array of the updated messages ordered by timestamp descending. Only updates messages matching the optional filter. If no filter is provided, all messages are updated. The new message state should be put as a JSON encoded object with a single field `new_state` in the request body with a `Content-Type` header of `application/json`. `new_state` can have the value `unread`, `read`, or `archived`.
 
 Example request payload to mark all messages as read:
 
-```
+```json
 {"new_state": "read"}
 ```
 
-### `DELETE /api/messages`
+### `DELETE /messages`
 
-Permanently deletes messages. Responds with a JSON array of the deleted messages. Only updates messages matching the optional filter. Unlike the other endpoints, if no filter is provided, an error is returned instead of deleting all messages as a safety measure to prevent data loss.
-
-## Running locally
-
-```sh
-# Install Shuttle
-$ cargo install cargo-shuttle
-
-# Copy secrets definitions
-$ cp http_server/Secrets.example.toml http_server/Secrets.dev.toml
-
-# Manually edit http_server/Secrets.dev.toml if desired
-
-# Run the server
-$ cargo shuttle run --working-directory http_server
-```
-
-To change the database used, modify the `DATABASE_URL` secret in `http_server/Secrets.dev.toml` to point to a local or remote Postgres database. To change the expected API token, modify the `API_TOKEN` secret to be a long randomly-generated string of your own choosing.
+Permanently deletes messages. Responds with a JSON array of the deleted messages ordered by timestamp descending. Only updates messages matching the optional filter. Unlike the other endpoints, if no filter is provided, an error is returned instead of deleting all messages as a safety measure to prevent data loss.

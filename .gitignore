@@ -1,4 +1,5 @@
 .DS_Store
+mailbox.db*
 /cli/contrib
 /cli/man
 /target

@@ -1,13 +1,72 @@
 use crate::mailbox::Mailbox;
 use crate::message::{Id, Message, MessageIden, State};
 use sea_query::{Cond, Condition, Expr};
-use serde::Deserialize;
+use serde::de::{self, Deserializer};
+use serde::ser::Serializer;
+use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use std::string::ToString;
 
-#[derive(Clone, Default, Deserialize, Eq, PartialEq)]
+// Serialize Option<Vec<T>> into a comma-separated string so that serde_urlencoded can handle it
+fn serialize_vec_to_csv<S, T>(vec: &Option<Vec<T>>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    T: ToString,
+{
+    match vec {
+        Some(item) => {
+            let csv = item
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<String>>()
+                .join(",");
+            serializer.serialize_some(&csv)
+        }
+        None => serializer.serialize_none(),
+    }
+}
+
+// Deserialize Option<Vec<T>> from a comma-separated string so that serde_urlencoded can handle it
+fn deserialize_vec_from_csv<'de, D, T>(deserializer: D) -> Result<Option<Vec<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    T::Err: std::fmt::Display,
+{
+    let csv = Option::<String>::deserialize(deserializer)?;
+    csv.map(|csv| {
+        if csv.is_empty() {
+            return Ok(vec![]);
+        }
+
+        csv.split(',')
+            .map(|item| item.parse().map_err(de::Error::custom))
+            .collect::<Result<Vec<T>, _>>()
+    })
+    .transpose()
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 #[must_use]
 pub struct MessageFilter {
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_vec_to_csv",
+        deserialize_with = "deserialize_vec_from_csv",
+        default
+    )]
     ids: Option<Vec<Id>>,
+
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     mailbox: Option<Mailbox>,
+
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_vec_to_csv",
+        deserialize_with = "deserialize_vec_from_csv",
+        default
+    )]
     states: Option<Vec<State>>,
 }
 
@@ -175,5 +234,105 @@ mod tests {
         assert!(!MessageFilter::new()
             .with_states(vec![State::Read])
             .matches_message(&message));
+    }
+
+    #[test]
+    fn test_serialize_ids() {
+        let filter = MessageFilter::new().with_ids(vec![1]);
+        assert_eq!(serde_urlencoded::to_string(filter).unwrap(), "ids=1");
+
+        let filter = MessageFilter::new().with_ids(vec![1, 2, 3]);
+        assert_eq!(
+            serde_urlencoded::to_string(filter).unwrap(),
+            "ids=1%2C2%2C3"
+        );
+    }
+
+    #[test]
+    fn test_serialize_mailbox() {
+        let filter = MessageFilter::new().with_mailbox("foo".try_into().unwrap());
+        assert_eq!(serde_urlencoded::to_string(filter).unwrap(), "mailbox=foo");
+    }
+
+    #[test]
+    fn test_serialize_states() {
+        let filter = MessageFilter::new().with_states(vec![State::Unread]);
+        assert_eq!(
+            serde_urlencoded::to_string(filter).unwrap(),
+            "states=unread"
+        );
+
+        let filter = MessageFilter::new().with_states(vec![State::Read, State::Archived]);
+        assert_eq!(
+            serde_urlencoded::to_string(filter).unwrap(),
+            "states=read%2Carchived"
+        );
+    }
+
+    #[test]
+    fn test_serialize_multiple() {
+        let filter = MessageFilter::new()
+            .with_ids(vec![1, 2, 3])
+            .with_mailbox("foo".try_into().unwrap())
+            .with_states(vec![State::Unread, State::Read]);
+        assert_eq!(
+            serde_urlencoded::to_string(filter).unwrap(),
+            "ids=1%2C2%2C3&mailbox=foo&states=unread%2Cread"
+        );
+    }
+
+    #[test]
+    fn test_deserialize_ids() {
+        assert_eq!(
+            serde_urlencoded::from_str::<MessageFilter>("ids=1").unwrap(),
+            MessageFilter::new().with_ids(vec![1])
+        );
+
+        assert_eq!(
+            serde_urlencoded::from_str::<MessageFilter>("ids=1,2,3").unwrap(),
+            MessageFilter::new().with_ids(vec![1, 2, 3])
+        );
+
+        assert!(serde_urlencoded::from_str::<MessageFilter>("ids=1,2,a").is_err());
+    }
+
+    #[test]
+    fn test_deserialize_mailbox() {
+        assert_eq!(
+            serde_urlencoded::from_str::<MessageFilter>("mailbox=foo").unwrap(),
+            MessageFilter::new().with_mailbox("foo".try_into().unwrap())
+        );
+    }
+
+    #[test]
+    fn test_deserialize_states() {
+        assert_eq!(
+            serde_urlencoded::from_str::<MessageFilter>("states=unread").unwrap(),
+            MessageFilter::new().with_states(vec![State::Unread])
+        );
+
+        assert_eq!(
+            serde_urlencoded::from_str::<MessageFilter>("states=read,archived").unwrap(),
+            MessageFilter::new().with_states(vec![State::Read, State::Archived])
+        );
+
+        assert_eq!(
+            serde_urlencoded::from_str::<MessageFilter>("states=").unwrap(),
+            MessageFilter::new().with_states(vec![])
+        );
+
+        assert!(serde_urlencoded::from_str::<MessageFilter>("states=unread,foo").is_err());
+    }
+
+    #[test]
+    fn test_deserialize_multiple() {
+        assert_eq!(
+            serde_urlencoded::from_str::<MessageFilter>("ids=1,2,3&mailbox=foo&states=unread,read")
+                .unwrap(),
+            MessageFilter::new()
+                .with_ids(vec![1, 2, 3])
+                .with_mailbox("foo".try_into().unwrap())
+                .with_states(vec![State::Unread, State::Read])
+        );
     }
 }

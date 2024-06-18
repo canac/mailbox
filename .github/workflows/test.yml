@@ -24,11 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - uses: ikalnytskyi/action-setup-postgres@v5
-        id: postgres
       - run: cargo test
-        env:
-          TEST_DB_URL: ${{ steps.postgres.outputs.connection-uri }}
 
   fmt:
     name: Format

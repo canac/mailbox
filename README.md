@@ -258,15 +258,24 @@ $ mailbox add my-script/error/network "Couldn't connect to the internet" --state
 
 You can also run `mailbox config locate` to print the OS-dependent path of the configuration file.
 
-## Using Postgres
+## Using a remote database
 
-By default, messages are stored in a local SQLite database. To use a local or remove Postgres database instead, add the following to your configuration file:
+By default, messages are stored in a local SQLite database. To use a remote database instead, first start [`http_server`](./http_server/README.md) on the machine that you want to host the database. It will use a local SQLite database and expose a REST API over HTTP to interact with the mailbox.
+
+```sh
+$ http_server --expose --token=0a1b2c3de4f5 # token can be any string
+```
+
+Then on the client machine, add the following to your configuration file:
 
 ```toml
 [database]
-provider = 'postgres'
-url = 'postgres://postgres@localhost/mailbox' # replace with your Postgres connection URL
+provider = 'http'
+url = 'http://10.0.0.10:8080' # replace with the IP address and port of the mailbox server
+token = '0a1b2c3de4f5' # optional, replace with with the API token passed to `http_server --token=xxx`
 ```
+
+This repository contains a reference implementation of the HTTP server written in Rust. However, the mailbox CLI can connect to any provider over HTTP as long as it fulfills the API contract documented here [`http_server`](./http_server/README.md#rest-api). Alternative HTTP servers can be written in other languages and even use a different other than SQLite.
 
 ## Mass importing messages
 

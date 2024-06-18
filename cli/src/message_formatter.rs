@@ -133,7 +133,11 @@ impl MessageFormatter {
 
         let mut line = TruncatedLine::new(max_columns);
         line.append(
-            components.state.to_string(),
+            match components.state {
+                State::Unread => "*",
+                State::Read => " ",
+                State::Archived => "-",
+            },
             if matches!(message.state, State::Unread) && self.color {
                 Some(|str: &str| str.red().bold())
             } else {
