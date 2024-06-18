@@ -2,7 +2,7 @@
 members = [
   "cli",
   "database",
-  "http_server",
+  "server",
 ]
 resolver = "2"
 

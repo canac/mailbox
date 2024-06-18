@@ -1201,18 +1201,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "http_server"
-version = "0.7.2"
-dependencies = [
- "actix-web",
- "anyhow",
- "clap",
- "database",
- "serde",
- "tokio",
-]
-
-[[package]]
 name = "httparse"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1560,6 +1548,18 @@ dependencies = [
  "toml",
  "unicode-width",
  "webbrowser",
+]
+
+[[package]]
+name = "mailbox-server"
+version = "0.7.2"
+dependencies = [
+ "actix-web",
+ "anyhow",
+ "clap",
+ "database",
+ "serde",
+ "tokio",
 ]
 
 [[package]]

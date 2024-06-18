@@ -6,7 +6,7 @@
 
 1. **Local database**: `mailbox` can store its messages in a local SQLite database. Local commands and scripts can add messages through a CLI interface. You can then use that CLI to review and manipulate messages. This approach is the most performant when all messages are created and viewed on the same machine.
 2. **Remote database**: `mailbox` can also store its messages in a remote Postgres database. Local commands and scripts can still add messages through a CLI interface, and you can still use that CLI to review and manipulate messages. This approach is most useful if you have two or more machines and want to be able to create messages from any machine that can be reviewed from either machine.
-3. **REST interface**: `mailbox` also includes an [HTTP server](https://github.com/canac/mailbox/tree/main/http_server). It connects to a Postgres database using the same internal library as the CLI. Other systems can add and manipulate messages through a REST API. This could be useful if you want code that runs in the cloud to be able to create messages via a simple HTTP request. This REST API could also be used in the future to create a web GUI interface for `mailbox` to complement the terminal-based UI in the CLI. The API is documented fully [here](https://github.com/canac/mailbox/tree/main/http_server/README.md).
+3. **REST interface**: `mailbox` also includes an [HTTP server](./server). It connects to a Postgres database using the same internal library as the CLI. Other systems can add and manipulate messages through a REST API. This could be useful if you want code that runs in the cloud to be able to create messages via a simple HTTP request. This REST API could also be used in the future to create a web GUI interface for `mailbox` to complement the terminal-based UI in the CLI. The API is documented fully [here](./server/README.md).
 
 ## Installation
 
@@ -260,10 +260,10 @@ You can also run `mailbox config locate` to print the OS-dependent path of the c
 
 ## Using a remote database
 
-By default, messages are stored in a local SQLite database. To use a remote database instead, first start [`http_server`](./http_server/README.md) on the machine that you want to host the database. It will use a local SQLite database and expose a REST API over HTTP to interact with the mailbox.
+By default, messages are stored in a local SQLite database. To use a remote database instead, first start [`mailbox-server`](./server/README.md) on the machine that you want to host the database. It will use a local SQLite database and expose a REST API over HTTP to interact with the mailbox.
 
 ```sh
-$ http_server --expose --token=0a1b2c3de4f5 # token can be any string
+$ mailbox-server --expose --token=0a1b2c3de4f5 # token can be any string
 ```
 
 Then on the client machine, add the following to your configuration file:
@@ -272,10 +272,10 @@ Then on the client machine, add the following to your configuration file:
 [database]
 provider = 'http'
 url = 'http://10.0.0.10:8080' # replace with the IP address and port of the mailbox server
-token = '0a1b2c3de4f5' # optional, replace with with the API token passed to `http_server --token=xxx`
+token = '0a1b2c3de4f5' # optional, replace with with the API token passed to `mailbox-server --token=xxx`
 ```
 
-This repository contains a reference implementation of the HTTP server written in Rust. However, the mailbox CLI can connect to any provider over HTTP as long as it fulfills the API contract documented here [`http_server`](./http_server/README.md#rest-api). Alternative HTTP servers can be written in other languages and even use a different other than SQLite.
+This repository contains a reference implementation of the HTTP server written in Rust. However, the mailbox CLI can connect to any provider over HTTP as long as it fulfills the API contract documented here [`mailbox-server`](./server/README.md#rest-api). Alternative HTTP servers can be written in other languages and even use a different other than SQLite.
 
 ## Mass importing messages
 

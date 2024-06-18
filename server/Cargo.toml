@@ -1,9 +1,9 @@
 [package]
-name = "http_server"
+name = "mailbox-server"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
-description = "HTTP server for mailbox messages"
+description = "mailbox HTTP API server"
 readme = { workspace = true }
 repository = { workspace = true }
 license = { workspace = true }

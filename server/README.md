@@ -1,11 +1,11 @@
-# http_server
+# mailbox-server
 
-The `http_server` CLI starts an HTTP server that provides a REST API interface for interacting with a mailbox. It stores the messages in an SQLite database. The `mailbox` CLI can interact with this API server as [documented here](../README.md#using-a-remote-database). Another other application can use the same REST interface to read and update messages. For example, suppose you have a script that runs hourly in a Cloudflare Worker that scrapes a webpage for new data. That script can create messages based simply by making calls to the REST endpoint provided by this server.
+The `mailbox-server` CLI starts an HTTP server that provides a REST API interface for interacting with a mailbox. It stores the messages in an SQLite database. The `mailbox` CLI can interact with this API server as [documented here](../README.md#using-a-remote-database). Another other application can use the same REST interface to read and update messages. For example, suppose you have a script that runs hourly in a Cloudflare Worker that scrapes a webpage for new data. That script can create messages based simply by making calls to the REST endpoint provided by this server.
 
 ## Getting started
 
 ```sh
-$ http_server
+$ mailbox-server
 $ curl http://localhost:8080/messages
 ```
 
@@ -16,7 +16,7 @@ $ curl http://localhost:8080/messages
 Sets the port that the HTTP server will listen on. The port can also be set with the `$PORT` environment variable.
 
 ```sh
-$ http_server --port=9000
+$ mailbox-server --port=9000
 $ curl http://localhost:9000/messages
 ```
 
@@ -25,7 +25,7 @@ $ curl http://localhost:9000/messages
 Instructs the HTTP server to bind to 0.0.0.0 instead of 127.0.0.1 and accept incoming connections from other machines on the network.
 
 ```sh
-$ http_server --expose
+$ mailbox-server --expose
 # On another machine using the server machine's IP address
 $ curl http://10.0.0.10:9000/messages
 ```
@@ -35,7 +35,7 @@ $ curl http://10.0.0.10:9000/messages
 Causes the HTTP server to expect an `Authorization: Bearer {token}` header containing this token on all requests. Without this arg, no `Authorization` header is required.
 
 ```sh
-$ http_server --token=0a1b2c3de4f5
+$ mailbox-server --token=0a1b2c3de4f5
 $ curl http://localhost:8080/messages -H "Authorization: Bearer 0a1b2c3de4f5"
 ```
 
@@ -44,7 +44,7 @@ $ curl http://localhost:8080/messages -H "Authorization: Bearer 0a1b2c3de4f5"
 Path to the SQLite database file that the server uses to store the messages
 
 ```sh
-$ http_server --db-file=$HOME/messages.db
+$ mailbox-server --db-file=$HOME/messages.db
 $ curl http://localhost:8080/messages
 ```
 
