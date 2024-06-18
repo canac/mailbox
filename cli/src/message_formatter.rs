@@ -192,7 +192,7 @@ impl MessageFormatter {
                 .iter()
                 .map(|mailbox| mailbox.messages.len())
                 .sum::<usize>(),
-            self.max_lines.unwrap_or(std::usize::MAX),
+            self.max_lines.unwrap_or(usize::MAX),
         );
 
         // Distribute the available lines to the mailboxes as evenly as possible
