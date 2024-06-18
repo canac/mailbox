@@ -69,7 +69,7 @@ jobs:
           LICENSE README.md
           cli/man/
           -C cli/contrib/ completions/ -C ../../
-          -C target/${{ matrix.target }}/release/ mailbox
+          -C target/${{ matrix.target }}/release/ mailbox mailbox-server
           | gzip --best > '${{ env.ARTIFACT_NAME }}.tar.gz'
 
       - name: Package [Windows]
@@ -80,6 +80,7 @@ jobs:
           ./cli/man/
           ./cli/contrib/completions/
           ./target/${{ matrix.target }}/release/mailbox.exe
+          ./target/${{ matrix.target }}/release/mailbox-server.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
