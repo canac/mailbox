@@ -34,11 +34,13 @@ impl<'messages> Mailbox<'messages> {
         let mut messages = messages;
 
         // Sort the messages with newest ones first, then alphabetically by mailbox name
-        messages.sort_by_key(|message| (-message.timestamp.timestamp(), &message.mailbox));
+        messages
+            .sort_by_key(|message| (-message.timestamp.and_utc().timestamp(), &message.mailbox));
         let timestamp = messages
             .first()
             .expect("messages must not be empty")
             .timestamp
+            .and_utc()
             .timestamp();
 
         Mailbox {
@@ -112,11 +114,11 @@ impl MessageFormatter {
                 .to_string(),
             ),
             TimestampFormat::Local => Local
-                .timestamp_opt(message.timestamp.timestamp(), 0)
+                .timestamp_opt(message.timestamp.and_utc().timestamp(), 0)
                 .single()
                 .map(|time| time.to_string()),
             TimestampFormat::Utc => Utc
-                .timestamp_opt(message.timestamp.timestamp(), 0)
+                .timestamp_opt(message.timestamp.and_utc().timestamp(), 0)
                 .single()
                 .map(|time| time.to_string()),
         };
@@ -307,14 +309,15 @@ impl MessageFormatter {
 mod tests {
     use super::*;
 
-    use chrono::NaiveDateTime;
+    use chrono::DateTime;
 
     // Helper for creating a new message
     fn make_message(mailbox: &str, content: &str, timestamp_offset: i64) -> Message {
         Message {
             id: 1,
-            timestamp: NaiveDateTime::from_timestamp_opt(1_640_995_200 + timestamp_offset, 0)
-                .unwrap(),
+            timestamp: DateTime::from_timestamp(1_640_995_200 + timestamp_offset, 0)
+                .unwrap()
+                .naive_utc(),
             mailbox: mailbox.try_into().unwrap(),
             content: content.into(),
             state: State::Unread,

@@ -5,7 +5,7 @@ use crate::new_message::NewMessage;
 use crate::Backend;
 use anyhow::{Context, Result};
 use sea_query::{
-    Alias, ColumnDef, Expr, Func, Keyword, Order, Query, SqliteQueryBuilder, Table, Value,
+    Alias, Asterisk, ColumnDef, Expr, Func, Keyword, Order, Query, SqliteQueryBuilder, Table, Value,
 };
 use sea_query_binder::SqlxBinder;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
@@ -160,7 +160,7 @@ impl Backend for SqliteBackend {
 
     async fn load_messages(&self, filter: MessageFilter) -> Result<Vec<Message>> {
         let (sql, values) = Query::select()
-            .expr(Expr::asterisk())
+            .column((MessageIden::Table, Asterisk))
             .from(MessageIden::Table)
             .cond_where(filter.get_where())
             .order_by(MessageIden::Id, Order::Desc)
@@ -186,7 +186,7 @@ impl Backend for SqliteBackend {
             .await
             .context("Failed to change message states")?;
         // Sort the messages manually since SQLite doesn't support sorting RETURNING results
-        messages.sort_by_key(|message| -message.timestamp.timestamp());
+        messages.sort_by_key(|message| -message.timestamp.and_utc().timestamp());
         Ok(messages)
     }
 
@@ -202,7 +202,7 @@ impl Backend for SqliteBackend {
             .await
             .context("Failed to clear messages")?;
         // Sort the messages manually since SQLite doesn't support sorting RETURNING results
-        messages.sort_by_key(|message| -message.timestamp.timestamp());
+        messages.sort_by_key(|message| -message.timestamp.and_utc().timestamp());
         Ok(messages)
     }
 
