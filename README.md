@@ -2,11 +2,10 @@
 
 `mailbox` is a message manager for output from local and remote scripts. To illustrate, when you run a backup script directly in your terminal you can see the output and status code immediately in stdout/stderr. However, if you run that script daily on a schedule via cron, you need another way to see whether it succeeded and get other feedback. You could write the output to a log file but then you need to repeatedly check it for updates and keep track of which log messages are new. That is where `mailbox` comes in. You can configure the backup script to add a mailbox message about how many files were backed or whether the command failed. You can then asynchronously review these messages at your convenience as they arrive. `mailbox` also lets you organize messages into mailboxes and keep track of which messages have been read already. You can even integrate `mailbox` with your shell prompt to be quickly notified in your terminal of any new, unread messages.
 
-`mailbox` can be used in a variety of ways.
+`mailbox` can be used with either a local database or a remote database.
 
 1. **Local database**: `mailbox` can store its messages in a local SQLite database. Local commands and scripts can add messages through a CLI interface. You can then use that CLI to review and manipulate messages. This approach is the most performant when all messages are created and viewed on the same machine.
-2. **Remote database**: `mailbox` can also store its messages in a remote Postgres database. Local commands and scripts can still add messages through a CLI interface, and you can still use that CLI to review and manipulate messages. This approach is most useful if you have two or more machines and want to be able to create messages from any machine that can be reviewed from either machine.
-3. **REST interface**: `mailbox` also includes an [HTTP server](./server). It connects to a Postgres database using the same internal library as the CLI. Other systems can add and manipulate messages through a REST API. This could be useful if you want code that runs in the cloud to be able to create messages via a simple HTTP request. This REST API could also be used in the future to create a web GUI interface for `mailbox` to complement the terminal-based UI in the CLI. The API is documented fully [here](./server/README.md).
+2. **Remote database**: `mailbox` can also communicate with the REST interface provided by a [`mailbox-server`](./server) running on a remote machine. `mailbox-server` stores its messages in a SQLite database on the machine it runs on. Commands and scripts can add messages through the `mailbox` CLI or directly by using the REST API documented [here](./server/README.md). You can use the `mailbox` CLI to review and manipulate messages.
 
 ## Installation
 
@@ -193,7 +192,7 @@ format = '[($output )](bold yellow)'
 shell = ['bash', '--noprofile', '--norc']
 ```
 
-If you are using a remote Postgres database, you might want to cache the output of `mailbox view` to keep updating the prompt quick. You can use a tool like [`bkt`](https://github.com/dimo414/bkt) to achieve that.
+If you are using a remote database, you might want to cache the output of `mailbox view` to keep updating the prompt quick. You can use a tool like [`bkt`](https://github.com/dimo414/bkt) to achieve that.
 
 ```toml
 # Put the mailbox notifications before all other modules
@@ -275,7 +274,7 @@ url = 'http://10.0.0.10:8080' # replace with the IP address and port of the mail
 token = '0a1b2c3de4f5' # optional, replace with with the API token passed to `mailbox-server --token=xxx`
 ```
 
-This repository contains a reference implementation of the HTTP server written in Rust. However, the mailbox CLI can connect to any provider over HTTP as long as it fulfills the API contract documented here [`mailbox-server`](./server/README.md#rest-api). Alternative HTTP servers can be written in other languages and even use a different other than SQLite.
+This repository contains a reference implementation of the HTTP server written in Rust. However, `mailbox` can connect to any provider over HTTP as long as it fulfills the API contract documented here [`mailbox-server`](./server/README.md#rest-api). Alternative HTTP servers can be written in other languages and even use a different other than SQLite.
 
 ## Mass importing messages
 
