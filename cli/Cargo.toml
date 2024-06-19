@@ -30,7 +30,7 @@ unicode-width = "0.1.10"
 webbrowser = "0.8.9"
 
 [build-dependencies]
-clap = { version = "4.2.4", features = ["derive"] }
-clap_complete = "4.2.1"
-clap_mangen = "0.2.10"
+clap = { workspace = true, features = ["derive"] }
+clap_complete = { workspace = true }
+clap_mangen = { workspace = true }
 database = { path = "../database" }

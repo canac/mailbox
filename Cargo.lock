@@ -1616,6 +1616,8 @@ dependencies = [
  "actix-web",
  "anyhow",
  "clap",
+ "clap_complete",
+ "clap_mangen",
  "database",
  "serde",
  "tokio",
