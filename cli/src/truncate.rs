@@ -191,7 +191,6 @@ mod tests {
         assert_eq!(line.to_string(), "⭐⭐…");
     }
 
-    // This test requires CLICOLOR_FORCE=1 set in .cargo/config.toml to use colors, even in CI
     #[test]
     fn test_colored() {
         let mut line = TruncatedLine::new(11);
@@ -200,7 +199,6 @@ mod tests {
         assert_eq!(line.to_string(), "hello \u{1b}[31mworld\u{1b}[0m");
     }
 
-    // This test requires CLICOLOR_FORCE=1 set in .cargo/config.toml to use colors, even in CI
     #[test]
     fn test_colored_empty_string() {
         let mut line = TruncatedLine::new(5);

@@ -79,7 +79,7 @@ fn create_formatter(cli: &Cli) -> MessageFormatter {
     } else if cli.no_color {
         false
     } else {
-        colored::control::SHOULD_COLORIZE.should_colorize()
+        colored::control::ShouldColorize::from_env().should_colorize()
     };
     let timestamp_format = cli.timestamp_format.unwrap_or({
         if tty {
@@ -208,9 +208,6 @@ async fn run<B: Backend + Send + Sync + 'static>(
 async fn main() -> Result<()> {
     // Fix broken pipe panics
     sigpipe::reset();
-
-    // Let us control the coloring instead of colored
-    colored::control::set_override(true);
 
     let config = load_config()?;
     let database = config

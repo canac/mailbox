@@ -5,7 +5,7 @@ use anyhow::{anyhow, Result};
 use chrono::{Local, TimeZone, Utc};
 use chrono_humanize::HumanTime;
 use database::{Message, State};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Once};
 
 enum Word {
     Message,
@@ -102,6 +102,12 @@ impl MessageFormatter {
     // Format a single message into a string. There will not be a newline at the end.
     pub fn format_message(&self, message: &Message, appendix: Option<String>) -> Result<String> {
         use colored::Colorize;
+
+        static INIT: Once = Once::new();
+        INIT.call_once(|| {
+            // Let us control the coloring instead of colored
+            colored::control::set_override(true);
+        });
 
         // Display the time differently based on the requested format
         let time = match self.timestamp_format {

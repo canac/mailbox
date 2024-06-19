@@ -1,3 +1,0 @@
-[env]
-# Required to force color even in CI for truncate tests
-CLICOLOR_FORCE = "1"
