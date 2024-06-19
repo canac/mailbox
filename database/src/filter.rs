@@ -49,7 +49,7 @@ where
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 #[must_use]
-pub struct MessageFilter {
+pub struct Filter {
     #[serde(
         skip_serializing_if = "Option::is_none",
         serialize_with = "serialize_vec_to_csv",
@@ -70,12 +70,12 @@ pub struct MessageFilter {
     states: Option<Vec<State>>,
 }
 
-// MessageFilter is a consistent interface for filtering messages in Database methods.
+// Filter is a consistent interface for filtering messages in Database methods.
 // It utilizes the builder pattern.
-impl MessageFilter {
+impl Filter {
     // Create a new message filter
     pub fn new() -> Self {
-        MessageFilter::default()
+        Filter::default()
     }
 
     // Add a mailbox filter
@@ -175,49 +175,41 @@ mod tests {
 
     #[test]
     fn test_matches_all() {
-        assert!(MessageFilter::new().matches_all());
-        assert!(!MessageFilter::new().with_ids(vec![1]).matches_all());
-        assert!(!MessageFilter::new()
+        assert!(Filter::new().matches_all());
+        assert!(!Filter::new().with_ids(vec![1]).matches_all());
+        assert!(!Filter::new()
             .with_mailbox("foo".try_into().unwrap())
             .matches_all());
-        assert!(!MessageFilter::new()
-            .with_states(vec![State::Unread])
-            .matches_all());
+        assert!(!Filter::new().with_states(vec![State::Unread]).matches_all());
     }
 
     #[test]
     fn test_matches_message_empty_filter() {
         let message = get_message();
-        assert!(MessageFilter::new().matches_message(&message));
+        assert!(Filter::new().matches_message(&message));
     }
 
     #[test]
     fn test_matches_message_id_filter() {
         let message = get_message();
-        assert!(MessageFilter::new()
-            .with_ids(vec![1])
-            .matches_message(&message));
-        assert!(MessageFilter::new()
-            .with_ids(vec![1, 2])
-            .matches_message(&message));
-        assert!(!MessageFilter::new()
-            .with_ids(vec![2])
-            .matches_message(&message));
+        assert!(Filter::new().with_ids(vec![1]).matches_message(&message));
+        assert!(Filter::new().with_ids(vec![1, 2]).matches_message(&message));
+        assert!(!Filter::new().with_ids(vec![2]).matches_message(&message));
     }
 
     #[test]
     fn test_matches_message_mailbox_filter() {
         let message = get_message();
-        assert!(MessageFilter::new()
+        assert!(Filter::new()
             .with_mailbox("parent".try_into().unwrap())
             .matches_message(&message));
-        assert!(MessageFilter::new()
+        assert!(Filter::new()
             .with_mailbox("parent/child".try_into().unwrap())
             .matches_message(&message));
-        assert!(!MessageFilter::new()
+        assert!(!Filter::new()
             .with_mailbox("parent/child2".try_into().unwrap())
             .matches_message(&message));
-        assert!(!MessageFilter::new()
+        assert!(!Filter::new()
             .with_mailbox("parent/child/grandchild".try_into().unwrap())
             .matches_message(&message));
     }
@@ -225,23 +217,23 @@ mod tests {
     #[test]
     fn test_matches_message_state_filter() {
         let message = get_message();
-        assert!(MessageFilter::new()
+        assert!(Filter::new()
             .with_states(vec![State::Unread])
             .matches_message(&message));
-        assert!(MessageFilter::new()
+        assert!(Filter::new()
             .with_states(vec![State::Unread, State::Read])
             .matches_message(&message));
-        assert!(!MessageFilter::new()
+        assert!(!Filter::new()
             .with_states(vec![State::Read])
             .matches_message(&message));
     }
 
     #[test]
     fn test_serialize_ids() {
-        let filter = MessageFilter::new().with_ids(vec![1]);
+        let filter = Filter::new().with_ids(vec![1]);
         assert_eq!(serde_urlencoded::to_string(filter).unwrap(), "ids=1");
 
-        let filter = MessageFilter::new().with_ids(vec![1, 2, 3]);
+        let filter = Filter::new().with_ids(vec![1, 2, 3]);
         assert_eq!(
             serde_urlencoded::to_string(filter).unwrap(),
             "ids=1%2C2%2C3"
@@ -250,19 +242,19 @@ mod tests {
 
     #[test]
     fn test_serialize_mailbox() {
-        let filter = MessageFilter::new().with_mailbox("foo".try_into().unwrap());
+        let filter = Filter::new().with_mailbox("foo".try_into().unwrap());
         assert_eq!(serde_urlencoded::to_string(filter).unwrap(), "mailbox=foo");
     }
 
     #[test]
     fn test_serialize_states() {
-        let filter = MessageFilter::new().with_states(vec![State::Unread]);
+        let filter = Filter::new().with_states(vec![State::Unread]);
         assert_eq!(
             serde_urlencoded::to_string(filter).unwrap(),
             "states=unread"
         );
 
-        let filter = MessageFilter::new().with_states(vec![State::Read, State::Archived]);
+        let filter = Filter::new().with_states(vec![State::Read, State::Archived]);
         assert_eq!(
             serde_urlencoded::to_string(filter).unwrap(),
             "states=read%2Carchived"
@@ -271,7 +263,7 @@ mod tests {
 
     #[test]
     fn test_serialize_multiple() {
-        let filter = MessageFilter::new()
+        let filter = Filter::new()
             .with_ids(vec![1, 2, 3])
             .with_mailbox("foo".try_into().unwrap())
             .with_states(vec![State::Unread, State::Read]);
@@ -284,52 +276,52 @@ mod tests {
     #[test]
     fn test_deserialize_ids() {
         assert_eq!(
-            serde_urlencoded::from_str::<MessageFilter>("ids=1").unwrap(),
-            MessageFilter::new().with_ids(vec![1])
+            serde_urlencoded::from_str::<Filter>("ids=1").unwrap(),
+            Filter::new().with_ids(vec![1])
         );
 
         assert_eq!(
-            serde_urlencoded::from_str::<MessageFilter>("ids=1,2,3").unwrap(),
-            MessageFilter::new().with_ids(vec![1, 2, 3])
+            serde_urlencoded::from_str::<Filter>("ids=1,2,3").unwrap(),
+            Filter::new().with_ids(vec![1, 2, 3])
         );
 
-        assert!(serde_urlencoded::from_str::<MessageFilter>("ids=1,2,a").is_err());
+        assert!(serde_urlencoded::from_str::<Filter>("ids=1,2,a").is_err());
     }
 
     #[test]
     fn test_deserialize_mailbox() {
         assert_eq!(
-            serde_urlencoded::from_str::<MessageFilter>("mailbox=foo").unwrap(),
-            MessageFilter::new().with_mailbox("foo".try_into().unwrap())
+            serde_urlencoded::from_str::<Filter>("mailbox=foo").unwrap(),
+            Filter::new().with_mailbox("foo".try_into().unwrap())
         );
     }
 
     #[test]
     fn test_deserialize_states() {
         assert_eq!(
-            serde_urlencoded::from_str::<MessageFilter>("states=unread").unwrap(),
-            MessageFilter::new().with_states(vec![State::Unread])
+            serde_urlencoded::from_str::<Filter>("states=unread").unwrap(),
+            Filter::new().with_states(vec![State::Unread])
         );
 
         assert_eq!(
-            serde_urlencoded::from_str::<MessageFilter>("states=read,archived").unwrap(),
-            MessageFilter::new().with_states(vec![State::Read, State::Archived])
+            serde_urlencoded::from_str::<Filter>("states=read,archived").unwrap(),
+            Filter::new().with_states(vec![State::Read, State::Archived])
         );
 
         assert_eq!(
-            serde_urlencoded::from_str::<MessageFilter>("states=").unwrap(),
-            MessageFilter::new().with_states(vec![])
+            serde_urlencoded::from_str::<Filter>("states=").unwrap(),
+            Filter::new().with_states(vec![])
         );
 
-        assert!(serde_urlencoded::from_str::<MessageFilter>("states=unread,foo").is_err());
+        assert!(serde_urlencoded::from_str::<Filter>("states=unread,foo").is_err());
     }
 
     #[test]
     fn test_deserialize_multiple() {
         assert_eq!(
-            serde_urlencoded::from_str::<MessageFilter>("ids=1,2,3&mailbox=foo&states=unread,read")
+            serde_urlencoded::from_str::<Filter>("ids=1,2,3&mailbox=foo&states=unread,read")
                 .unwrap(),
-            MessageFilter::new()
+            Filter::new()
                 .with_ids(vec![1, 2, 3])
                 .with_mailbox("foo".try_into().unwrap())
                 .with_states(vec![State::Unread, State::Read])

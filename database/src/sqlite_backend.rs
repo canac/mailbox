@@ -1,6 +1,6 @@
 use crate::database::MailboxInfo;
+use crate::filter::Filter;
 use crate::message::{Message, MessageIden, State};
-use crate::message_filter::MessageFilter;
 use crate::new_message::NewMessage;
 use crate::Backend;
 use anyhow::{Context, Result};
@@ -158,7 +158,7 @@ impl Backend for SqliteBackend {
         Ok(messages)
     }
 
-    async fn load_messages(&self, filter: MessageFilter) -> Result<Vec<Message>> {
+    async fn load_messages(&self, filter: Filter) -> Result<Vec<Message>> {
         let (sql, values) = Query::select()
             .column((MessageIden::Table, Asterisk))
             .from(MessageIden::Table)
@@ -173,7 +173,7 @@ impl Backend for SqliteBackend {
         Ok(messages)
     }
 
-    async fn change_state(&self, filter: MessageFilter, new_state: State) -> Result<Vec<Message>> {
+    async fn change_state(&self, filter: Filter, new_state: State) -> Result<Vec<Message>> {
         let (sql, values) = Query::update()
             .table(MessageIden::Table)
             .cond_where(filter.get_where())
@@ -190,7 +190,7 @@ impl Backend for SqliteBackend {
         Ok(messages)
     }
 
-    async fn delete_messages(&self, filter: MessageFilter) -> Result<Vec<Message>> {
+    async fn delete_messages(&self, filter: Filter) -> Result<Vec<Message>> {
         let (sql, values) = Query::delete()
             .from_table(MessageIden::Table)
             .returning_all()
@@ -206,7 +206,7 @@ impl Backend for SqliteBackend {
         Ok(messages)
     }
 
-    async fn load_mailboxes(&self, filter: MessageFilter) -> Result<Vec<MailboxInfo>> {
+    async fn load_mailboxes(&self, filter: Filter) -> Result<Vec<MailboxInfo>> {
         let (sql, values) = Query::select()
             .from(MessageIden::Table)
             .column(MessageIden::Mailbox)
@@ -291,10 +291,10 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["message2", "message1", "message3"]
         );
-        assert_eq!(backend.load_messages(MessageFilter::new()).await?.len(), 3);
+        assert_eq!(backend.load_messages(Filter::new()).await?.len(), 3);
 
         let messages = backend
-            .load_messages(MessageFilter::new().with_mailbox("mailbox1".try_into()?))
+            .load_messages(Filter::new().with_mailbox("mailbox1".try_into()?))
             .await?;
         assert_eq!(messages[0].mailbox.as_ref(), "mailbox1");
         assert_eq!(messages[0].content, "message1");
@@ -303,7 +303,7 @@ mod tests {
         assert_eq!(messages.len(), 2);
 
         let messages = backend
-            .load_messages(MessageFilter::new().with_mailbox("mailbox2".try_into()?))
+            .load_messages(Filter::new().with_mailbox("mailbox2".try_into()?))
             .await?;
         assert_eq!(messages[0].mailbox.as_ref(), "mailbox2");
         assert_eq!(messages[0].content, "message2");
@@ -316,7 +316,7 @@ mod tests {
     async fn test_add_zero() -> Result<()> {
         let backend = SqliteBackend::new_test().await?;
         backend.add_messages(vec![]).await?;
-        assert_eq!(backend.load_messages(MessageFilter::new()).await?.len(), 0);
+        assert_eq!(backend.load_messages(Filter::new()).await?.len(), 0);
         Ok(())
     }
 
@@ -333,7 +333,7 @@ mod tests {
     #[tokio::test]
     async fn test_load() -> Result<()> {
         let backend = get_populated_backend().await?;
-        assert_eq!(backend.load_messages(MessageFilter::new()).await?.len(), 6);
+        assert_eq!(backend.load_messages(Filter::new()).await?.len(), 6);
         Ok(())
     }
 
@@ -342,7 +342,7 @@ mod tests {
         let backend = get_populated_backend().await?;
         assert_eq!(
             backend
-                .load_messages(MessageFilter::new().with_mailbox("unread".try_into()?))
+                .load_messages(Filter::new().with_mailbox("unread".try_into()?))
                 .await?
                 .len(),
             2
@@ -355,7 +355,7 @@ mod tests {
         let backend = get_populated_backend().await?;
         assert_eq!(
             backend
-                .load_messages(MessageFilter::new().with_states(vec![State::Read, State::Archived]))
+                .load_messages(Filter::new().with_states(vec![State::Read, State::Archived]))
                 .await?
                 .len(),
             4
@@ -378,21 +378,21 @@ mod tests {
             .await?;
         assert_eq!(
             backend
-                .load_messages(MessageFilter::new().with_mailbox("a".try_into()?))
+                .load_messages(Filter::new().with_mailbox("a".try_into()?))
                 .await?
                 .len(),
             5
         );
         assert_eq!(
             backend
-                .load_messages(MessageFilter::new().with_mailbox("a/b".try_into()?))
+                .load_messages(Filter::new().with_mailbox("a/b".try_into()?))
                 .await?
                 .len(),
             2
         );
         assert_eq!(
             backend
-                .load_messages(MessageFilter::new().with_mailbox("a/b/c".try_into()?))
+                .load_messages(Filter::new().with_mailbox("a/b/c".try_into()?))
                 .await?
                 .len(),
             1
@@ -404,14 +404,11 @@ mod tests {
     async fn test_read() -> Result<()> {
         let backend = get_populated_backend().await?;
         backend
-            .change_state(
-                MessageFilter::new().with_states(vec![State::Unread]),
-                State::Read,
-            )
+            .change_state(Filter::new().with_states(vec![State::Unread]), State::Read)
             .await?;
         assert_eq!(
             backend
-                .load_messages(MessageFilter::new().with_states(vec![State::Read]))
+                .load_messages(Filter::new().with_states(vec![State::Read]))
                 .await?
                 .len(),
             5
@@ -425,7 +422,7 @@ mod tests {
         assert_eq!(
             backend
                 .change_state(
-                    MessageFilter::new().with_states(vec![State::Unread, State::Read]),
+                    Filter::new().with_states(vec![State::Unread, State::Read]),
                     State::Archived,
                 )
                 .await?
@@ -434,7 +431,7 @@ mod tests {
         );
         assert_eq!(
             backend
-                .load_messages(MessageFilter::new().with_states(vec![State::Archived]))
+                .load_messages(Filter::new().with_states(vec![State::Archived]))
                 .await?
                 .len(),
             6
@@ -447,12 +444,12 @@ mod tests {
         let backend = get_populated_backend().await?;
         assert_eq!(
             backend
-                .delete_messages(MessageFilter::new().with_states(vec![State::Unread, State::Read]))
+                .delete_messages(Filter::new().with_states(vec![State::Unread, State::Read]))
                 .await?
                 .len(),
             5
         );
-        assert_eq!(backend.load_messages(MessageFilter::new()).await?.len(), 1);
+        assert_eq!(backend.load_messages(Filter::new()).await?.len(), 1);
         Ok(())
     }
 
@@ -460,7 +457,7 @@ mod tests {
     async fn test_load_mailboxes() -> Result<()> {
         let backend = get_populated_backend().await?;
         assert_eq!(
-            backend.load_mailboxes(MessageFilter::new()).await?,
+            backend.load_mailboxes(Filter::new()).await?,
             vec![
                 MailboxInfo {
                     name: "archived".try_into()?,
@@ -484,7 +481,7 @@ mod tests {
         let backend = get_populated_backend().await?;
         assert_eq!(
             backend
-                .load_mailboxes(MessageFilter::new().with_states(vec![State::Unread]))
+                .load_mailboxes(Filter::new().with_states(vec![State::Unread]))
                 .await?,
             vec![MailboxInfo {
                 name: "unread".try_into()?,

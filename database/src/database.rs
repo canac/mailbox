@@ -1,6 +1,6 @@
+use crate::filter::Filter;
 use crate::mailbox::Mailbox;
 use crate::message::{Message, State};
-use crate::message_filter::MessageFilter;
 use crate::new_message::NewMessage;
 use crate::Backend;
 use anyhow::{bail, Result};
@@ -41,28 +41,24 @@ impl<B: Backend + Sized> Database<B> {
     }
 
     // Load all messages that match the filter
-    pub async fn load_messages(&self, filter: MessageFilter) -> Result<Vec<Message>> {
+    pub async fn load_messages(&self, filter: Filter) -> Result<Vec<Message>> {
         self.backend.load_messages(filter).await
     }
 
     // Move messages that match the filter from their old state into new_state, returning the
     // modified messages
-    pub async fn change_state(
-        &self,
-        filter: MessageFilter,
-        new_state: State,
-    ) -> Result<Vec<Message>> {
+    pub async fn change_state(&self, filter: Filter, new_state: State) -> Result<Vec<Message>> {
         self.backend.change_state(filter, new_state).await
     }
 
     // Delete messages that match the filter, returning the deleted messages
-    pub async fn delete_messages(&self, filter: MessageFilter) -> Result<Vec<Message>> {
+    pub async fn delete_messages(&self, filter: Filter) -> Result<Vec<Message>> {
         self.backend.delete_messages(filter).await
     }
 
     // Given all messages that match the filter, determine the names and sizes of all mailboxes
     // used by those messages
-    pub async fn load_mailboxes(&self, filter: MessageFilter) -> Result<Vec<MailboxInfo>> {
+    pub async fn load_mailboxes(&self, filter: Filter) -> Result<Vec<MailboxInfo>> {
         self.backend.load_mailboxes(filter).await
     }
 }

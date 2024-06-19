@@ -19,7 +19,7 @@ use crate::import::read_messages_stdin;
 use anyhow::{bail, Context, Result};
 use clap::Parser;
 use cli::{ConfigSubcommand, ViewMessageState};
-use database::{Backend, Database, HttpBackend, MessageFilter, NewMessage, SqliteBackend, State};
+use database::{Backend, Database, Filter, HttpBackend, NewMessage, SqliteBackend, State};
 use directories::ProjectDirs;
 use import::import_messages;
 use message_formatter::MessageFormatter;
@@ -153,7 +153,7 @@ async fn run<B: Backend + Send + Sync + 'static>(
         Command::View { mailbox, state, .. } => {
             let messages = db
                 .load_messages(
-                    MessageFilter::new()
+                    Filter::new()
                         .with_mailbox_option(mailbox)
                         .with_states(states_from_view_message_state(state)),
                 )
@@ -164,7 +164,7 @@ async fn run<B: Backend + Send + Sync + 'static>(
         Command::Read { mailbox } => {
             let messages = db
                 .change_state(
-                    MessageFilter::new()
+                    Filter::new()
                         .with_mailbox_option(mailbox)
                         .with_states(vec![State::Unread]),
                     State::Read,
@@ -176,7 +176,7 @@ async fn run<B: Backend + Send + Sync + 'static>(
         Command::Archive { mailbox } => {
             let messages = db
                 .change_state(
-                    MessageFilter::new()
+                    Filter::new()
                         .with_mailbox_option(mailbox)
                         .with_states(vec![State::Unread, State::Read]),
                     State::Archived,
@@ -188,7 +188,7 @@ async fn run<B: Backend + Send + Sync + 'static>(
         Command::Clear { mailbox } => {
             let messages = db
                 .delete_messages(
-                    MessageFilter::new()
+                    Filter::new()
                         .with_mailbox_option(mailbox)
                         .with_states(vec![State::Archived]),
                 )

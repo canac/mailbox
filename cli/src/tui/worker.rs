@@ -1,18 +1,15 @@
 use super::monotonic_counter::MonotonicCounter;
-use database::{Backend, Database, MailboxInfo, Message, MessageFilter, State};
+use database::{Backend, Database, Filter, MailboxInfo, Message, State};
 use std::sync::mpsc::{self, channel};
 use std::sync::Arc;
 use std::thread;
 use tokio::runtime::Handle;
 
 pub enum Request {
-    LoadMessages(MessageFilter),
-    LoadMailboxes(MessageFilter),
-    ChangeMessageStates {
-        filter: MessageFilter,
-        new_state: State,
-    },
-    DeleteMessages(MessageFilter),
+    LoadMessages(Filter),
+    LoadMailboxes(Filter),
+    ChangeMessageStates { filter: Filter, new_state: State },
+    DeleteMessages(Filter),
 }
 
 pub enum Response {

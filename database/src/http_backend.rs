@@ -1,6 +1,6 @@
 use crate::database::MailboxInfo;
+use crate::filter::Filter;
 use crate::message::{Message, State};
-use crate::message_filter::MessageFilter;
 use crate::new_message::NewMessage;
 use crate::Backend;
 use anyhow::{anyhow, Context, Result};
@@ -65,7 +65,7 @@ impl Backend for HttpBackend {
             .context("Error parsing add messages response")
     }
 
-    async fn load_messages(&self, filter: MessageFilter) -> Result<Vec<Message>> {
+    async fn load_messages(&self, filter: Filter) -> Result<Vec<Message>> {
         let res = self
             .client
             .get(format!("{}/messages", self.api_url))
@@ -80,7 +80,7 @@ impl Backend for HttpBackend {
             .context("Error parsing load messages response")
     }
 
-    async fn change_state(&self, filter: MessageFilter, new_state: State) -> Result<Vec<Message>> {
+    async fn change_state(&self, filter: Filter, new_state: State) -> Result<Vec<Message>> {
         let res = self
             .client
             .put(format!("{}/messages", self.api_url))
@@ -96,7 +96,7 @@ impl Backend for HttpBackend {
             .context("Error parsing change state response")
     }
 
-    async fn delete_messages(&self, filter: MessageFilter) -> Result<Vec<Message>> {
+    async fn delete_messages(&self, filter: Filter) -> Result<Vec<Message>> {
         let res = self
             .client
             .delete(format!("{}/messages", self.api_url))
@@ -111,7 +111,7 @@ impl Backend for HttpBackend {
             .context("Error parsing delete messages response")
     }
 
-    async fn load_mailboxes(&self, filter: MessageFilter) -> Result<Vec<MailboxInfo>> {
+    async fn load_mailboxes(&self, filter: Filter) -> Result<Vec<MailboxInfo>> {
         let res = self
             .client
             .get(format!("{}/mailboxes", self.api_url))

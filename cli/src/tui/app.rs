@@ -3,7 +3,7 @@ use super::navigable_list::{Keyed, NavigableList};
 use super::tree_list::{Depth, TreeList};
 use super::worker::{spawn, Receiver, Request, Response, Sender};
 use anyhow::Result;
-use database::{Backend, Database, MailboxInfo, Message, MessageFilter, State};
+use database::{Backend, Database, Filter, MailboxInfo, Message, State};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
@@ -137,7 +137,7 @@ impl App {
     // Update the mailboxes list
     pub fn update_mailboxes(&mut self) -> Result<()> {
         self.worker_tx.send(Request::LoadMailboxes(
-            MessageFilter::new().with_states(self.get_active_states()),
+            Filter::new().with_states(self.get_active_states()),
         ))?;
         Ok(())
     }
@@ -177,8 +177,8 @@ impl App {
     }
 
     // Get the filter representing which messages should be displayed
-    pub fn get_display_filter(&self) -> MessageFilter {
-        MessageFilter::new()
+    pub fn get_display_filter(&self) -> Filter {
+        Filter::new()
             .with_mailbox_option(
                 self.mailboxes
                     .get_cursor_item()
@@ -188,7 +188,7 @@ impl App {
     }
 
     // // Get the filter representing which messages are selected and should be acted upon
-    fn get_action_filter(&self) -> MessageFilter {
+    fn get_action_filter(&self) -> Filter {
         let selected_items = self
             .messages
             .get_selected_items()
@@ -204,7 +204,7 @@ impl App {
         } else {
             selected_items
         };
-        MessageFilter::new().with_ids(active_ids)
+        Filter::new().with_ids(active_ids)
     }
 
     // Change the state of all selected messages

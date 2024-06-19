@@ -11,7 +11,7 @@ use actix_web::{delete, get, post, put, App, HttpResponse, HttpServer, Result};
 use anyhow::Context;
 use clap::Parser;
 use cli::Cli;
-use database::{Database, MailboxInfo, Message, MessageFilter, NewMessage, SqliteBackend, State};
+use database::{Database, Filter, MailboxInfo, Message, NewMessage, SqliteBackend, State};
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -27,7 +27,7 @@ enum CreateMessage {
 #[get("/mailboxes")]
 async fn read_mailboxes(
     data: Data<AppData>,
-    filter: Query<MessageFilter>,
+    filter: Query<Filter>,
 ) -> Result<Json<Vec<MailboxInfo>>> {
     let mailboxes = data
         .load_mailboxes(filter.into_inner())
@@ -37,10 +37,7 @@ async fn read_mailboxes(
 }
 
 #[get("/messages")]
-async fn read_messages(
-    data: Data<AppData>,
-    filter: Query<MessageFilter>,
-) -> Result<Json<Vec<Message>>> {
+async fn read_messages(data: Data<AppData>, filter: Query<Filter>) -> Result<Json<Vec<Message>>> {
     let messages = data
         .load_messages(filter.into_inner())
         .await
@@ -73,7 +70,7 @@ struct UpdateMessages {
 #[put("/messages")]
 async fn update_messages(
     data: Data<AppData>,
-    filter: Query<MessageFilter>,
+    filter: Query<Filter>,
     new_state: Json<UpdateMessages>,
 ) -> Result<Json<Vec<Message>>> {
     let messages = data
@@ -84,16 +81,12 @@ async fn update_messages(
 }
 
 #[delete("/messages")]
-async fn delete_messages(
-    data: Data<AppData>,
-    filter: Query<MessageFilter>,
-) -> Result<Json<Vec<Message>>> {
-    let message_filter: MessageFilter = filter.into_inner();
-    if message_filter.matches_all() {
+async fn delete_messages(data: Data<AppData>, filter: Query<Filter>) -> Result<Json<Vec<Message>>> {
+    if filter.matches_all() {
         return Err(ErrorBadRequest("Filter is required"));
     }
     let messages = data
-        .delete_messages(message_filter)
+        .delete_messages(filter.into_inner())
         .await
         .map_err(ErrorInternalServerError)?;
     Ok(Json(messages))
