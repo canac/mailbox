@@ -159,7 +159,6 @@ impl MessageFormatter {
         line.append(
             components.time,
             if self.color {
-                #[allow(clippy::redundant_closure_for_method_calls)]
                 Some(|str: &str| str.yellow())
             } else {
                 None

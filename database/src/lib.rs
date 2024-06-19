@@ -1,9 +1,5 @@
 #![deny(clippy::pedantic)]
-#![allow(
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::missing_errors_doc
-)]
+#![allow(clippy::missing_errors_doc)]
 
 mod backend;
 mod database;

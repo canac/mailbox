@@ -119,7 +119,7 @@ impl Filter {
                     states
                         .iter()
                         .map(|state| (*state).into())
-                        .collect::<Vec<i32>>(),
+                        .collect::<Vec<u32>>(),
                 )
             }))
     }

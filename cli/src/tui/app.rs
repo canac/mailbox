@@ -43,7 +43,7 @@ impl Keyed for Mailbox {
 
 impl Keyed for Message {
     fn get_key(&self) -> u64 {
-        self.id as u64
+        u64::from(self.id)
     }
 }
 

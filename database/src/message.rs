@@ -25,10 +25,10 @@ impl Display for State {
     }
 }
 
-impl TryFrom<i32> for State {
+impl TryFrom<u32> for State {
     type Error = anyhow::Error;
 
-    fn try_from(value: i32) -> anyhow::Result<Self> {
+    fn try_from(value: u32) -> anyhow::Result<Self> {
         match value {
             0 => Ok(State::Unread),
             1 => Ok(State::Read),
@@ -51,7 +51,7 @@ impl FromStr for State {
     }
 }
 
-impl From<State> for i32 {
+impl From<State> for u32 {
     fn from(value: State) -> Self {
         match value {
             State::Unread => 0,
@@ -63,11 +63,11 @@ impl From<State> for i32 {
 
 impl From<State> for Value {
     fn from(value: State) -> Value {
-        Value::Int(Some(value.into()))
+        Value::Unsigned(Some(value.into()))
     }
 }
 
-pub type Id = i32;
+pub type Id = u32;
 
 #[derive(Clone, Deserialize, Serialize)]
 #[enum_def]
@@ -86,7 +86,7 @@ impl FromRow<'_, SqliteRow> for Message {
             timestamp: row.try_get("timestamp")?,
             mailbox: row.try_get::<String, _>("mailbox")?.try_into().unwrap(),
             content: row.try_get("content")?,
-            state: row.try_get::<i32, _>("state")?.try_into().unwrap(),
+            state: row.try_get::<u32, _>("state")?.try_into().unwrap(),
         })
     }
 }

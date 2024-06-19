@@ -1,9 +1,4 @@
 #![deny(clippy::pedantic)]
-#![allow(
-    clippy::cast_possible_truncation,
-    clippy::cast_possible_wrap,
-    clippy::cast_sign_loss
-)]
 
 mod cli;
 mod config;

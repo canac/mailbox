@@ -177,7 +177,7 @@ impl Backend for SqliteBackend {
         let (sql, values) = Query::update()
             .table(MessageIden::Table)
             .cond_where(filter.get_where())
-            .value::<_, i32>(MessageIden::State, new_state.into())
+            .value::<_, u32>(MessageIden::State, new_state.into())
             .returning_all()
             .build_sqlx(SqliteQueryBuilder);
 
@@ -227,7 +227,7 @@ impl Backend for SqliteBackend {
                 let count: i64 = row.try_get("count")?;
                 Ok(MailboxInfo {
                     name: mailbox.try_into()?,
-                    message_count: count as usize,
+                    message_count: count.try_into()?,
                 })
             })
             .collect::<Result<Vec<_>>>()?;

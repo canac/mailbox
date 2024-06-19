@@ -198,11 +198,7 @@ mod tests {
 
         let mut line = TruncatedLine::new(11);
         line.append("hello ", None);
-        line.append(
-            "world",
-            #[allow(clippy::redundant_closure_for_method_calls)]
-            Some(|str| str.red()),
-        );
+        line.append("world", Some(|str| str.red()));
         assert_eq!(line.to_string(), "hello \u{1b}[31mworld\u{1b}[0m");
 
         colored::control::unset_override();
@@ -215,11 +211,7 @@ mod tests {
 
         let mut line = TruncatedLine::new(5);
         line.append("hello ", None);
-        line.append(
-            "world",
-            #[allow(clippy::redundant_closure_for_method_calls)]
-            Some(|str| str.red()),
-        );
+        line.append("world", Some(|str| str.red()));
         assert_eq!(line.to_string(), "hell…");
 
         colored::control::unset_override();
