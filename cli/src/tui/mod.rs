@@ -368,8 +368,7 @@ fn open_message(message: &Message) {
     finder.kinds(&[LinkKind::Url]);
 
     if let Some(link) = finder.links(&message.content).next() {
-        if webbrowser::open(link.as_str()).is_err() {
-            // Silently ignore errors if the URL couldn't be opened
-        }
+        // Silently ignore errors if the URL couldn't be opened
+        let _ = webbrowser::open(link.as_str());
     }
 }
