@@ -22,7 +22,7 @@ pub enum Response {
 pub type Sender = mpsc::Sender<Request>;
 pub type Receiver = mpsc::Receiver<Response>;
 
-// Spawn an worker for asynchronously interacting with the database
+// Spawn a worker for asynchronously interacting with the database
 // It receives requests from a channel, runs the corresponding database query asynchronously,
 // and when the response is ready, sends it on another channel
 pub fn spawn<B: Backend + Send + Sync + 'static>(db: Arc<Database<B>>) -> (Sender, Receiver) {
