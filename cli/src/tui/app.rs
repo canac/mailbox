@@ -78,16 +78,12 @@ impl App {
             db.load_mailboxes(app.get_display_filter()).await?,
         ));
         if let Some(initial_mailbox) = initial_mailbox {
-            app.mailboxes
-                .set_cursor(app.mailboxes.get_items().iter().enumerate().find_map(
-                    |(index, mailbox)| {
-                        if mailbox.mailbox == initial_mailbox {
-                            Some(index)
-                        } else {
-                            None
-                        }
-                    },
-                ));
+            app.mailboxes.set_cursor(
+                app.mailboxes
+                    .get_items()
+                    .iter()
+                    .position(|mailbox| mailbox.mailbox == initial_mailbox),
+            );
         }
         Ok(app)
     }
