@@ -117,12 +117,12 @@ impl App {
                 // Children mailboxes contribute to the size of their parents
                 mailboxes
                     .entry(full_name.clone())
-                    .and_modify(|mailbox| mailbox.message_count += count)
                     .or_insert(Mailbox {
                         mailbox: full_name,
                         depth: index,
-                        message_count: count,
-                    });
+                        message_count: 0,
+                    })
+                    .message_count += count;
             }
         }
         let mut mailboxes = mailboxes.into_values().collect::<Vec<_>>();
