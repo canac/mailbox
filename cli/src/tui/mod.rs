@@ -131,6 +131,8 @@ fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
         }
         _ => return Ok(()),
     }
+    // Update the mailboxes in case updating the messages list loads new messages that change the mailbox counts
+    app.update_mailboxes()?;
     app.update_messages()?;
 
     Ok(())

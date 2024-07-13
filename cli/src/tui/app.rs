@@ -160,8 +160,12 @@ impl App {
                         self.update_messages()?;
                     }
                 }
-                Response::ChangeMessageStates | Response::DeleteMessages => {
+                Response::Refresh => {
+                    // A change or delete messages mutation has completed that changed the active mailbox, so now
+                    // refresh the mailbox and message lists. We have to wait for the mutation to complete first to
+                    // avoid loading the unchanged messages.
                     self.update_mailboxes()?;
+                    self.update_messages()?;
                 }
             };
         }
@@ -207,37 +211,44 @@ impl App {
     // Change the state of all selected messages
     pub fn set_selected_message_states(&mut self, new_state: State) -> Result<()> {
         let action_filter = self.get_action_filter();
-        self.worker_tx.send(Request::ChangeMessageStates {
-            filter: action_filter.clone(),
-            new_state,
-        })?;
 
-        // Update the messages list
+        // Optimistically update the messages list
         let display_filter = self.get_display_filter();
-        self.messages.replace_items(
-            self.messages
-                .get_items()
-                .iter()
-                .cloned()
-                .filter_map(|message| {
-                    if !action_filter.matches_message(&message) {
-                        // This message is not being changed, so keep it
-                        return Some(message);
-                    }
-
-                    let new_message = Message {
+        let (remaining, removed) = self
+            .messages
+            .get_items()
+            .iter()
+            .cloned()
+            .map(|message| {
+                if action_filter.matches_message(&message) {
+                    Message {
                         state: new_state,
                         ..message
-                    };
-                    // Filter out the message if it no longer matches the display filter
-                    if display_filter.matches_message(&new_message) {
-                        Some(new_message)
-                    } else {
-                        None
                     }
-                })
-                .collect(),
-        );
+                } else {
+                    // This message is not being changed, so keep it
+                    message
+                }
+            })
+            .partition(|message| display_filter.matches_message(message));
+        self.messages.replace_items(remaining);
+
+        // Optimistically update the mailbox list
+        let old_display_filter = self.get_display_filter();
+        self.remove_messages_from_mailboxes(removed);
+
+        // Apply the mutation
+        self.worker_tx.send(Request::ChangeMessageStates {
+            filter: action_filter,
+            new_state,
+            // If changing the mailbox list changed the active mailbox, the message list needs to be refreshed
+            // The actual refreshing is done when handle_worker_response receives the refresh response
+            response: if old_display_filter == self.get_display_filter() {
+                None
+            } else {
+                Some(Response::Refresh)
+            },
+        })?;
 
         Ok(())
     }
@@ -245,20 +256,68 @@ impl App {
     // Delete all selected messages
     pub fn delete_selected_messages(&mut self) -> Result<()> {
         let filter = self.get_action_filter();
-        self.worker_tx
-            .send(Request::DeleteMessages(filter.clone()))?;
 
-        // Update the message list
-        self.messages.replace_items(
-            self.messages
-                .get_items()
-                .iter()
-                .filter(|message| !filter.matches_message(message))
-                .cloned()
-                .collect(),
-        );
+        // Optimistically update the message list
+        let (deleted, remaining) = self
+            .messages
+            .get_items()
+            .iter()
+            .cloned()
+            .partition(|message| filter.matches_message(message));
+        self.messages.replace_items(remaining);
+
+        // Optimistically update the mailbox list
+        let old_display_filter = self.get_display_filter();
+        self.remove_messages_from_mailboxes(deleted);
+
+        // Apply the mutation
+        self.worker_tx.send(Request::DeleteMessages {
+            filter,
+            // If changing the mailbox list changed the active mailbox, the message list needs to be refreshed
+            // The actual refreshing is done when handle_worker_response receives the refresh response
+            response: if old_display_filter == self.get_display_filter() {
+                None
+            } else {
+                Some(Response::Refresh)
+            },
+        })?;
 
         Ok(())
+    }
+
+    // Update the mailbox list to reflect the removal of the messages from the message list
+    fn remove_messages_from_mailboxes(&mut self, messages: Vec<Message>) {
+        // First determine which mailboxes are losing messages and how many
+        let mut count_decreases = HashMap::<database::Mailbox, usize>::new();
+        for message in messages {
+            for mailbox in message.mailbox.iter_ancestors() {
+                *count_decreases.entry(mailbox).or_default() += 1;
+            }
+        }
+        // Then decrease the message count for those messages, removing empty mailboxes
+        self.mailboxes.replace_items(
+            self.mailboxes
+                .get_items()
+                .iter()
+                .filter_map(|mailbox| {
+                    let message_count = mailbox.message_count.saturating_sub(
+                        count_decreases
+                            .get(&mailbox.mailbox)
+                            .copied()
+                            .unwrap_or_default(),
+                    );
+                    if message_count == 0 {
+                        None
+                    } else {
+                        Some(Mailbox {
+                            mailbox: mailbox.mailbox.clone(),
+                            depth: mailbox.depth,
+                            message_count,
+                        })
+                    }
+                })
+                .collect(),
+        );
     }
 }
 

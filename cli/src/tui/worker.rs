@@ -8,15 +8,23 @@ use tokio::runtime::Handle;
 pub enum Request {
     LoadMessages(Filter),
     LoadMailboxes(Filter),
-    ChangeMessageStates { filter: Filter, new_state: State },
-    DeleteMessages(Filter),
+    ChangeMessageStates {
+        filter: Filter,
+        new_state: State,
+        // This response will be sent after the message states have been changed
+        response: Option<Response>,
+    },
+    DeleteMessages {
+        filter: Filter,
+        // This response will be sent after the messages have been deleted
+        response: Option<Response>,
+    },
 }
 
 pub enum Response {
     LoadMessages(Vec<Message>),
     LoadMailboxes(Vec<MailboxInfo>),
-    ChangeMessageStates,
-    DeleteMessages,
+    Refresh,
 }
 
 pub type Sender = mpsc::Sender<Request>;
@@ -56,13 +64,21 @@ pub fn spawn<B: Backend + Send + Sync + 'static>(db: Arc<Database<B>>) -> (Sende
                         tx_res.send(Response::LoadMailboxes(mailboxes)).unwrap();
                     }
                 }
-                Request::ChangeMessageStates { filter, new_state } => {
+                Request::ChangeMessageStates {
+                    filter,
+                    new_state,
+                    response,
+                } => {
                     db.change_state(filter, new_state).await.unwrap();
-                    tx_res.send(Response::ChangeMessageStates).unwrap();
+                    if let Some(response) = response {
+                        tx_res.send(response).unwrap();
+                    }
                 }
-                Request::DeleteMessages(filter) => {
+                Request::DeleteMessages { filter, response } => {
                     db.delete_messages(filter).await.unwrap();
-                    tx_res.send(Response::DeleteMessages).unwrap();
+                    if let Some(response) = response {
+                        tx_res.send(response).unwrap();
+                    }
                 }
             }
         });
