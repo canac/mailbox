@@ -72,8 +72,6 @@ impl App {
             worker_tx,
             worker_rx,
         };
-        app.messages
-            .replace_items(db.load_messages(app.get_display_filter()).await?);
         app.mailboxes.replace_items(Self::build_mailbox_list(
             db.load_mailboxes(app.get_display_filter()).await?,
         ));
@@ -85,6 +83,9 @@ impl App {
                     .position(|mailbox| mailbox.mailbox == initial_mailbox),
             );
         }
+        // Load the messages with the initial mailbox filter applied
+        app.messages
+            .replace_items(db.load_messages(app.get_display_filter()).await?);
         Ok(app)
     }
 
