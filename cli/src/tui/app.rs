@@ -131,6 +131,19 @@ impl App {
         mailboxes
     }
 
+    // Update the messages list based on the mailbox and other filters
+    pub fn filter_messages(&mut self) {
+        let filter = self.get_display_filter();
+        self.messages.replace_items(
+            self.messages
+                .get_items()
+                .iter()
+                .filter(|&item| filter.matches_message(item))
+                .cloned()
+                .collect(),
+        );
+    }
+
     // Update the mailboxes list
     pub fn update_mailboxes(&mut self) -> Result<()> {
         self.worker_tx.send(Request::LoadMailboxes(

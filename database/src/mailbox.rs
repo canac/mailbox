@@ -20,6 +20,12 @@ impl Mailbox {
     pub fn get_leaf_name(&self) -> &str {
         self.0.split('/').last().unwrap_or_default()
     }
+
+    // Return true if the mailbox is an ancestor of the other mailbox
+    #[must_use]
+    pub fn is_ancestor_of(&self, other: &Mailbox) -> bool {
+        other.0.starts_with(&format!("{}/", self.0))
+    }
 }
 
 impl AsRef<str> for Mailbox {
@@ -107,6 +113,15 @@ mod tests {
     fn test_get_leaf_name() {
         let mailbox: Mailbox = "a/b/c".try_into().unwrap();
         assert_eq!(mailbox.get_leaf_name(), "c");
+    }
+
+    #[test]
+    fn test_is_ancestor_of() {
+        let mailbox: Mailbox = "a/b/c".try_into().unwrap();
+        assert!(mailbox.is_ancestor_of(&"a/b/c/d".try_into().unwrap()));
+        assert!(!mailbox.is_ancestor_of(&"a/b/c".try_into().unwrap()));
+        assert!(!mailbox.is_ancestor_of(&"a/b/d".try_into().unwrap()));
+        assert!(!mailbox.is_ancestor_of(&"a/b".try_into().unwrap()));
     }
 
     #[test]

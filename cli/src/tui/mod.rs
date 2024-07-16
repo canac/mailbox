@@ -108,6 +108,10 @@ fn handle_global_key(app: &mut App, key: KeyEvent) -> Result<()> {
 // Respond to keyboard presses for the mailbox pane
 fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
     let control = key.modifiers.contains(KeyModifiers::CONTROL);
+    let old_active_mailbox = app
+        .mailboxes
+        .get_cursor_item()
+        .map(|item| item.mailbox.clone());
     match key.code {
         KeyCode::Esc => {
             app.mailboxes.remove_cursor();
@@ -131,6 +135,29 @@ fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
         }
         _ => return Ok(()),
     }
+
+    let active_mailbox = app.mailboxes.get_cursor_item().map(|item| &item.mailbox);
+    if active_mailbox == old_active_mailbox.as_ref() {
+        return Ok(());
+    }
+
+    if let Some(active_mailbox) = active_mailbox {
+        // If the new active mailbox is a descendant of the old one or if there wasn't an old active mailbox, the
+        // messages list can be optimistically updated by filtering against the new active mailbox instead of needing
+        // to refresh the whole list
+        let local_update = if let Some(old_active_mailbox) = old_active_mailbox {
+            old_active_mailbox.is_ancestor_of(active_mailbox)
+        } else {
+            true
+        };
+
+        if local_update {
+            // Optimistically update the messages list
+            app.filter_messages();
+            return Ok(());
+        }
+    }
+
     // Update the mailboxes in case updating the messages list loads new messages that change the mailbox counts
     app.update_mailboxes()?;
     app.update_messages()?;
