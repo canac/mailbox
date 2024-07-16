@@ -2,7 +2,6 @@ use crate::Mailbox;
 use anyhow::anyhow;
 use sea_query::{enum_def, Value};
 use serde::{Deserialize, Serialize};
-use sqlx::{sqlite::SqliteRow, FromRow, Row};
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 
@@ -68,24 +67,14 @@ impl From<State> for Value {
 
 pub type Id = u32;
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, sqlx::FromRow)]
 #[enum_def]
 pub struct Message {
     pub id: Id,
     pub timestamp: chrono::NaiveDateTime,
+    #[sqlx(try_from = "String")]
     pub mailbox: Mailbox,
     pub content: String,
+    #[sqlx(try_from = "u32")]
     pub state: State,
-}
-
-impl FromRow<'_, SqliteRow> for Message {
-    fn from_row(row: &SqliteRow) -> sqlx::Result<Self> {
-        Ok(Self {
-            id: row.try_get("id")?,
-            timestamp: row.try_get("timestamp")?,
-            mailbox: row.try_get::<String, _>("mailbox")?.try_into().unwrap(),
-            content: row.try_get("content")?,
-            state: row.try_get::<u32, _>("state")?.try_into().unwrap(),
-        })
-    }
 }
