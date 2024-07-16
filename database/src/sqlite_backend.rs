@@ -166,11 +166,10 @@ impl Backend for SqliteBackend {
             .order_by(MessageIden::Id, Order::Desc)
             .build_sqlx(SqliteQueryBuilder);
 
-        let messages = sqlx::query_as_with::<_, Message, _>(&sql, values)
+        sqlx::query_as_with::<_, Message, _>(&sql, values)
             .fetch_all(&self.pool)
             .await
-            .context("Failed to load messages")?;
-        Ok(messages)
+            .context("Failed to load messages")
     }
 
     async fn change_state(&self, filter: Filter, new_state: State) -> Result<Vec<Message>> {
@@ -223,11 +222,9 @@ impl Backend for SqliteBackend {
         let mailboxes = rows
             .iter()
             .map(|row| {
-                let mailbox: String = row.try_get("mailbox")?;
-                let count: i64 = row.try_get("count")?;
                 Ok(MailboxInfo {
-                    name: mailbox.try_into()?,
-                    message_count: count.try_into()?,
+                    name: row.try_get::<String, _>("mailbox")?.try_into()?,
+                    message_count: row.try_get::<i64, _>("count")?.try_into()?,
                 })
             })
             .collect::<Result<Vec<_>>>()?;

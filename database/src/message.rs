@@ -1,11 +1,10 @@
+use crate::Mailbox;
 use anyhow::anyhow;
 use sea_query::{enum_def, Value};
 use serde::{Deserialize, Serialize};
 use sqlx::{sqlite::SqliteRow, FromRow, Row};
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
-
-use crate::Mailbox;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
