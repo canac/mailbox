@@ -133,6 +133,24 @@ fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Char('K') => {
             app.mailboxes.parent();
         }
+        KeyCode::Char('a') => {
+            if let Some(active_mailbox) = old_active_mailbox.clone() {
+                app.set_mailbox_message_state(active_mailbox, State::Archived)?;
+            }
+            return Ok(());
+        }
+        KeyCode::Char('r') => {
+            if let Some(active_mailbox) = old_active_mailbox.clone() {
+                app.set_mailbox_message_state(active_mailbox, State::Read)?;
+            }
+            return Ok(());
+        }
+        KeyCode::Char('u') => {
+            if let Some(active_mailbox) = old_active_mailbox.clone() {
+                app.set_mailbox_message_state(active_mailbox, State::Unread)?;
+            }
+            return Ok(());
+        }
         _ => return Ok(()),
     }
 

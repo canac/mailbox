@@ -224,7 +224,53 @@ impl App {
     // Change the state of all selected messages
     pub fn set_selected_message_states(&mut self, new_state: State) -> Result<()> {
         let action_filter = self.get_action_filter();
+        self.set_message_states(action_filter, new_state)
+    }
 
+    // Change the state of all displayed messages in a message regardless of which messages are selected
+    pub fn set_mailbox_message_state(
+        &mut self,
+        mailbox: database::Mailbox,
+        new_state: State,
+    ) -> Result<()> {
+        let action_filter = self.get_display_filter().with_mailbox(mailbox);
+        self.set_message_states(action_filter, new_state)
+    }
+
+    // Delete all selected messages
+    pub fn delete_selected_messages(&mut self) -> Result<()> {
+        let filter = self.get_action_filter();
+
+        // Optimistically update the message list
+        let (deleted, remaining) = self
+            .messages
+            .get_items()
+            .iter()
+            .cloned()
+            .partition(|message| filter.matches_message(message));
+        self.messages.replace_items(remaining);
+
+        // Optimistically update the mailbox list
+        let old_display_filter = self.get_display_filter();
+        self.remove_messages_from_mailboxes(deleted);
+
+        // Apply the mutation
+        self.worker_tx.send(Request::DeleteMessages {
+            filter,
+            // If changing the mailbox list changed the active mailbox, the message list needs to be refreshed
+            // The actual refreshing is done when handle_worker_response receives the refresh response
+            response: if old_display_filter == self.get_display_filter() {
+                None
+            } else {
+                Some(Response::Refresh)
+            },
+        })?;
+
+        Ok(())
+    }
+
+    // Change the state of all messages matching the filter
+    fn set_message_states(&mut self, action_filter: Filter, new_state: State) -> Result<()> {
         // Optimistically update the messages list
         let display_filter = self.get_display_filter();
         let (remaining, removed) = self
@@ -254,38 +300,6 @@ impl App {
         self.worker_tx.send(Request::ChangeMessageStates {
             filter: action_filter,
             new_state,
-            // If changing the mailbox list changed the active mailbox, the message list needs to be refreshed
-            // The actual refreshing is done when handle_worker_response receives the refresh response
-            response: if old_display_filter == self.get_display_filter() {
-                None
-            } else {
-                Some(Response::Refresh)
-            },
-        })?;
-
-        Ok(())
-    }
-
-    // Delete all selected messages
-    pub fn delete_selected_messages(&mut self) -> Result<()> {
-        let filter = self.get_action_filter();
-
-        // Optimistically update the message list
-        let (deleted, remaining) = self
-            .messages
-            .get_items()
-            .iter()
-            .cloned()
-            .partition(|message| filter.matches_message(message));
-        self.messages.replace_items(remaining);
-
-        // Optimistically update the mailbox list
-        let old_display_filter = self.get_display_filter();
-        self.remove_messages_from_mailboxes(deleted);
-
-        // Apply the mutation
-        self.worker_tx.send(Request::DeleteMessages {
-            filter,
             // If changing the mailbox list changed the active mailbox, the message list needs to be refreshed
             // The actual refreshing is done when handle_worker_response receives the refresh response
             response: if old_display_filter == self.get_display_filter() {

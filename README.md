@@ -142,6 +142,9 @@ The following keyboard commands allow navigating and performing operations on th
 - `Ctrl+j` or `Ctrl+down`: move the cursor to the next mailbox in the tree at the same depth or shallower, skipping over deeper mailboxes
 - `Ctrl+k` or `Ctrl+up`: move the cursor to the previous mailbox in the tree at the same depth or shallower, skipping over deeper mailboxes
 - `Escape`: remove the cursor
+- `u`: mark all visible messages in the selected mailbox as unread
+- `r`: mark all visible messages in the selected mailbox as read
+- `a`: mark all visible messages in the selected mailbox as archived
 
 ### Message pane commands
 
