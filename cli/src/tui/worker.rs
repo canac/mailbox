@@ -43,7 +43,7 @@ pub fn spawn<B: Backend + Send + Sync + 'static>(db: Arc<Database<B>>) -> (Sende
     thread::spawn(move || loop {
         let Ok(req) = rx_req.recv() else { break };
         let tx_res = tx_res.clone();
-        let db = db.clone();
+        let db = Arc::clone(&db);
         let message_counter = message_counter.clone();
         let mailbox_counter = mailbox_counter.clone();
         handle.spawn(async move {

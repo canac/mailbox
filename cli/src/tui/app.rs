@@ -63,7 +63,7 @@ impl App {
         initial_states: Vec<State>,
     ) -> Result<App> {
         let db = Arc::new(db);
-        let (worker_tx, worker_rx) = spawn(db.clone());
+        let (worker_tx, worker_rx) = spawn(Arc::clone(&db));
         let mut app = App {
             active_pane: Pane::Messages,
             mailboxes: TreeList::new(),

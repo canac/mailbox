@@ -1,3 +1,4 @@
+#![deny(clippy::clone_on_ref_ptr)]
 #![deny(clippy::pedantic)]
 
 mod cli;
