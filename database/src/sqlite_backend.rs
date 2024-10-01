@@ -101,20 +101,24 @@ impl SqliteBackend {
                 ColumnDef::new(MessageIden::Mailbox)
                     .string()
                     .not_null()
-                    .extra(String::from("CHECK (LENGTH(mailbox) > 0)")),
+                    .check(Expr::expr(Func::char_length(Expr::col(MessageIden::Mailbox))).gt(0)),
             )
             .col(
                 ColumnDef::new(MessageIden::Content)
                     .string()
                     .not_null()
-                    .extra(String::from("CHECK (LENGTH(content) > 0)")),
+                    .check(Expr::expr(Func::char_length(Expr::col(MessageIden::Content))).gt(0)),
             )
             .col(
                 ColumnDef::new(MessageIden::State)
                     .integer()
                     .not_null()
                     .default(Value::Int(Some(0)))
-                    .extra(String::from("CHECK (state >= 0 AND state <= 2)")),
+                    .check(
+                        Expr::col(MessageIden::State)
+                            .gte(0)
+                            .and(Expr::col(MessageIden::State).lte(2)),
+                    ),
             )
             .build(SqliteQueryBuilder);
         query(&sql)
