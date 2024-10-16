@@ -20,7 +20,7 @@ pub struct TruncatedLine {
 impl TruncatedLine {
     // Create a new instance
     pub fn new(max_columns: usize) -> Self {
-        TruncatedLine {
+        Self {
             available_columns: max_columns,
             sections: Vec::default(),
         }

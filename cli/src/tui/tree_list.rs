@@ -34,7 +34,7 @@ where
 impl<Item: Depth + Keyed> TreeList<Item> {
     // Create a new list with no items
     pub fn new() -> Self {
-        TreeList {
+        Self {
             state: ListState::default(),
             items: vec![],
         }

@@ -42,10 +42,7 @@ where
         self.set_cursor(match self.get_items().len() {
             0 => None,
             num_items => {
-                let new_index = (match self.get_cursor() {
-                    None => -1,
-                    Some(index) => index as i32,
-                }) + change;
+                let new_index = self.get_cursor().map_or(-1, |index| index as i32) + change;
                 // Bounds check the new index
                 Some((new_index).clamp(0, num_items as i32 - 1) as usize)
             }
@@ -75,20 +72,18 @@ where
 
     // Replace the list's items with a new set of items
     fn replace_items(&mut self, items: Vec<Item>) {
-        let cursor_candidates = match self.get_cursor() {
-            None => vec![],
+        let cursor_candidates = self.get_cursor().map_or_else(Vec::new, |index| {
             // The items at and after the cursor are the first candidates,
             // starting with the items closest to the cursor, followed by
             // the items before the cursor, again starting with the items
             // closest to the cursor
-            Some(index) => self
-                .get_items()
+            self.get_items()
                 .iter()
                 .skip(index)
                 .chain(self.get_items().iter().take(index).rev())
                 .map(Keyed::get_key)
-                .collect(),
-        };
+                .collect()
+        });
 
         *self.get_items_mut() = items;
 

@@ -61,10 +61,10 @@ impl App {
         db: Database<B>,
         initial_mailbox: Option<database::Mailbox>,
         initial_states: Vec<State>,
-    ) -> Result<App> {
+    ) -> Result<Self> {
         let db = Arc::new(db);
         let (worker_tx, worker_rx) = spawn(Arc::clone(&db));
-        let mut app = App {
+        let mut app = Self {
             active_pane: Pane::Messages,
             mailboxes: TreeList::new(),
             messages: MultiselectList::new(),
@@ -145,7 +145,7 @@ impl App {
     }
 
     // Update the mailboxes list
-    pub fn update_mailboxes(&mut self) -> Result<()> {
+    pub fn update_mailboxes(&self) -> Result<()> {
         self.worker_tx.send(Request::LoadMailboxes(
             Filter::new().with_states(self.get_active_states()),
         ))?;
@@ -153,7 +153,7 @@ impl App {
     }
 
     // Update the messages list based on the mailbox and other filters
-    pub fn update_messages(&mut self) -> Result<()> {
+    pub fn update_messages(&self) -> Result<()> {
         let filter = self.get_display_filter();
         self.worker_tx.send(Request::LoadMessages(filter))?;
         Ok(())

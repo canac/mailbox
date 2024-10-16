@@ -1,5 +1,5 @@
-#![deny(clippy::clone_on_ref_ptr)]
-#![deny(clippy::pedantic)]
+#![warn(clippy::clone_on_ref_ptr, clippy::pedantic, clippy::nursery)]
+#![allow(clippy::future_not_send, clippy::missing_const_for_fn)]
 
 mod cli;
 mod config;
@@ -111,7 +111,7 @@ fn states_from_view_message_state(state: ViewMessageState) -> Vec<State> {
 
 async fn run<B: Backend + Send + Sync + 'static>(
     config: Option<Config>,
-    mut db: Database<B>,
+    db: Database<B>,
 ) -> Result<()> {
     let cli = Cli::parse();
     let formatter = create_formatter(&cli);
@@ -132,17 +132,13 @@ async fn run<B: Backend + Send + Sync + 'static>(
                 content,
                 state: Some(cli_state),
             }];
-            let messages = import_messages(&mut db, &config, raw_messages).await?;
+            let messages = import_messages(&db, &config, raw_messages).await?;
             print!("{}", formatter.format_messages(&messages)?);
         }
 
         Command::Import { format } => {
-            let messages = import_messages(
-                &mut db,
-                &config,
-                read_messages_stdin(stdin().lock(), format),
-            )
-            .await?;
+            let messages =
+                import_messages(&db, &config, read_messages_stdin(stdin().lock(), format)).await?;
             print!("{}", formatter.format_messages(&messages)?);
         }
 

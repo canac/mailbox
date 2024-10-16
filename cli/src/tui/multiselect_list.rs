@@ -73,7 +73,7 @@ where
 {
     // Create a new list with no items
     pub fn new() -> Self {
-        MultiselectList {
+        Self {
             state: ListState::default(),
             items: vec![],
             selected_items: HashSet::new(),

@@ -18,7 +18,7 @@ pub struct MonotonicCounter {
 impl MonotonicCounter {
     // Create a new monotonic counter
     pub fn new() -> Self {
-        MonotonicCounter {
+        Self {
             last_id: Arc::new(AtomicU64::new(0)),
         }
     }

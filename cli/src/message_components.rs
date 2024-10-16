@@ -18,7 +18,7 @@ impl MessageComponents {
     // Attempt to truncate the combined length of the message components down
     // to max_length. If this isn't possible, the message components will be
     // truncated as much as possible.
-    pub fn truncate(self, max_length: usize) -> MessageComponents {
+    pub fn truncate(self, max_length: usize) -> Self {
         let total_length =
             8 + self.content.width() + self.mailbox.width() + self.time.len() + self.appendix.len();
         if total_length <= max_length {
@@ -30,14 +30,14 @@ impl MessageComponents {
         let others_length = total_length - self.mailbox.width();
         if others_length + 4 <= max_length {
             let mailbox = truncate_string(&self.mailbox, max_length - others_length).0;
-            return MessageComponents { mailbox, ..self };
+            return Self { mailbox, ..self };
         }
 
         // Next try to truncate the content
         let others_length = total_length - self.content.width();
         if others_length + 4 <= max_length {
             let content = truncate_string(&self.content, max_length - others_length).0;
-            return MessageComponents { content, ..self };
+            return Self { content, ..self };
         }
 
         // Lastly, truncate the content and the mailbox
@@ -45,7 +45,7 @@ impl MessageComponents {
         let mailbox_and_content_length = max(max_length.saturating_sub(others_length) / 2, 4);
         let mailbox = truncate_string(&self.mailbox, mailbox_and_content_length).0;
         let content = truncate_string(&self.content, mailbox_and_content_length).0;
-        MessageComponents {
+        Self {
             content,
             mailbox,
             ..self

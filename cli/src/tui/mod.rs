@@ -134,19 +134,19 @@ fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
             app.mailboxes.parent();
         }
         KeyCode::Char('a') => {
-            if let Some(active_mailbox) = old_active_mailbox.clone() {
+            if let Some(active_mailbox) = old_active_mailbox {
                 app.set_mailbox_message_state(active_mailbox, State::Archived)?;
             }
             return Ok(());
         }
         KeyCode::Char('r') => {
-            if let Some(active_mailbox) = old_active_mailbox.clone() {
+            if let Some(active_mailbox) = old_active_mailbox {
                 app.set_mailbox_message_state(active_mailbox, State::Read)?;
             }
             return Ok(());
         }
         KeyCode::Char('u') => {
-            if let Some(active_mailbox) = old_active_mailbox.clone() {
+            if let Some(active_mailbox) = old_active_mailbox {
                 app.set_mailbox_message_state(active_mailbox, State::Unread)?;
             }
             return Ok(());
@@ -163,11 +163,9 @@ fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
         // If the new active mailbox is a descendant of the old one or if there wasn't an old active mailbox, the
         // messages list can be optimistically updated by filtering against the new active mailbox instead of needing
         // to refresh the whole list
-        let local_update = if let Some(old_active_mailbox) = old_active_mailbox {
+        let local_update = old_active_mailbox.map_or(true, |old_active_mailbox| {
             old_active_mailbox.is_ancestor_of(active_mailbox)
-        } else {
-            true
-        };
+        });
 
         if local_update {
             // Optimistically update the messages list
@@ -258,7 +256,7 @@ fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
 }
 
 // Render the footer section of the UI
-fn render_footer<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) {
+fn render_footer<B: Backend>(frame: &mut Frame<B>, app: &App, area: Rect) {
     const ACTIVE_STYLE: Style = Style::new().fg(Color::Black).bg(Color::Green);
     const INACTIVE_STYLE: Style = Style::new();
     const SELECTING_STYLE: Style = Style::new().fg(Color::LightBlue);
@@ -338,10 +336,9 @@ fn render_mailboxes<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect)
                 .border_style(border_style)
                 .title(format!(
                     "Mailboxes ({}{})",
-                    match app.mailboxes.get_cursor() {
-                        None => String::new(),
-                        Some(index) => format!("{}/", index + 1),
-                    },
+                    app.mailboxes
+                        .get_cursor()
+                        .map_or_else(String::new, |index| format!("{}/", index + 1)),
                     app.mailboxes.get_items().len()
                 )),
         )
@@ -398,10 +395,9 @@ fn render_messages<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) 
                 .border_style(border_style)
                 .title(format!(
                     "Messages ({}{})",
-                    match app.messages.get_cursor() {
-                        None => String::new(),
-                        Some(index) => format!("{}/", index + 1),
-                    },
+                    app.messages
+                        .get_cursor()
+                        .map_or_else(String::new, |index| format!("{}/", index + 1)),
                     app.messages.get_items().len()
                 )),
         )
