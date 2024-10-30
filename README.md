@@ -128,6 +128,7 @@ The following keyboard commands allow navigating and performing operations on th
 
 - `1`: focus the mailboxes pane
 - `2`: focus the messages pane
+- `right` or `left`: switch between mailboxes and messages panes
 - `Shift+r`: refresh the messages list
 - `Ctrl+u`: toggle whether unread messages are displayed
 - `Ctrl+r`: toggle whether read messages are displayed

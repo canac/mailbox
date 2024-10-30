@@ -92,6 +92,13 @@ fn handle_global_key(app: &mut App, key: KeyEvent) -> Result<()> {
     match key.code {
         KeyCode::Char('1') => app.activate_pane(Pane::Mailboxes),
         KeyCode::Char('2') => app.activate_pane(Pane::Messages),
+        KeyCode::Right | KeyCode::Left => {
+            app.activate_pane(if matches!(app.active_pane, Pane::Mailboxes) {
+                Pane::Messages
+            } else {
+                Pane::Mailboxes
+            });
+        }
         KeyCode::Char('R') => {
             app.update_mailboxes()?;
             app.update_messages()?;
