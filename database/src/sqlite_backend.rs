@@ -249,7 +249,7 @@ mod tests {
     ) -> Result<NewMessage> {
         Ok(NewMessage {
             mailbox: mailbox.try_into()?,
-            content: content.to_string(),
+            content: content.to_owned(),
             state: state.into(),
         })
     }

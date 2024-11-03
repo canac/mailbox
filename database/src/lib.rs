@@ -1,4 +1,4 @@
-#![warn(clippy::pedantic, clippy::nursery)]
+#![warn(clippy::str_to_string, clippy::pedantic, clippy::nursery)]
 #![allow(
     clippy::future_not_send,
     clippy::missing_const_for_fn,
