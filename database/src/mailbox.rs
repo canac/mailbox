@@ -10,9 +10,9 @@ pub struct Mailbox(String);
 impl Mailbox {
     // Iterate over the mailbox's ancestor mailboxes, including itself
     // Mailbox "a/b/c" with produce "a", "a/b", "a/b/c"
-    pub fn iter_ancestors(&self) -> impl Iterator<Item = Mailbox> + '_ {
+    pub fn iter_ancestors(&self) -> impl Iterator<Item = Self> + '_ {
         let sections = self.0.split('/').collect::<Vec<_>>();
-        (0..sections.len()).map(move |index| Mailbox(sections[0..=index].join("/")))
+        (0..sections.len()).map(move |index| Self(sections[0..=index].join("/")))
     }
 
     // Return the name of the mailbox without its ancestors
@@ -23,7 +23,7 @@ impl Mailbox {
 
     // Return true if the mailbox is an ancestor of the other mailbox
     #[must_use]
-    pub fn is_ancestor_of(&self, other: &Mailbox) -> bool {
+    pub fn is_ancestor_of(&self, other: &Self) -> bool {
         other.0.starts_with(&format!("{}/", self.0))
     }
 }
@@ -87,8 +87,8 @@ impl From<Mailbox> for String {
 }
 
 impl From<Mailbox> for Value {
-    fn from(value: Mailbox) -> Value {
-        Value::String(Some(Box::new(value.0)))
+    fn from(value: Mailbox) -> Self {
+        Self::String(Some(Box::new(value.0)))
     }
 }
 

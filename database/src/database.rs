@@ -14,7 +14,7 @@ fn validate_message(message: &NewMessage) -> Result<()> {
     Ok(())
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct MailboxInfo {
     pub name: Mailbox,
     pub message_count: usize,
@@ -28,7 +28,7 @@ impl<B: Backend + Sized> Database<B> {
     // Create a new Database that uses the provided backend
     #[must_use]
     pub fn new(backend: B) -> Self {
-        Database { backend }
+        Self { backend }
     }
 
     // Add multiple new messages, returning the new messages

@@ -16,9 +16,9 @@ pub enum State {
 impl Display for State {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            State::Unread => "unread",
-            State::Read => "read",
-            State::Archived => "archived",
+            Self::Unread => "unread",
+            Self::Read => "read",
+            Self::Archived => "archived",
         })
     }
 }
@@ -28,9 +28,9 @@ impl TryFrom<u32> for State {
 
     fn try_from(value: u32) -> anyhow::Result<Self> {
         match value {
-            0 => Ok(State::Unread),
-            1 => Ok(State::Read),
-            2 => Ok(State::Archived),
+            0 => Ok(Self::Unread),
+            1 => Ok(Self::Read),
+            2 => Ok(Self::Archived),
             _ => Err(anyhow!("Invalid message state {}", value)),
         }
     }
@@ -41,9 +41,9 @@ impl FromStr for State {
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
-            "unread" => Ok(State::Unread),
-            "read" => Ok(State::Read),
-            "archived" => Ok(State::Archived),
+            "unread" => Ok(Self::Unread),
+            "read" => Ok(Self::Read),
+            "archived" => Ok(Self::Archived),
             _ => Err(anyhow!("Invalid message state {}", value)),
         }
     }
@@ -60,8 +60,8 @@ impl From<State> for u32 {
 }
 
 impl From<State> for Value {
-    fn from(value: State) -> Value {
-        Value::Unsigned(Some(value.into()))
+    fn from(value: State) -> Self {
+        Self::Unsigned(Some(value.into()))
     }
 }
 

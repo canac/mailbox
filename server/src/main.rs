@@ -1,4 +1,4 @@
-#![deny(clippy::pedantic)]
+#![warn(clippy::pedantic, clippy::nursery)]
 
 mod cli;
 

@@ -75,7 +75,7 @@ pub struct Filter {
 impl Filter {
     // Create a new message filter
     pub fn new() -> Self {
-        Filter::default()
+        Self::default()
     }
 
     // Add a mailbox filter
@@ -114,14 +114,10 @@ impl Filter {
                     .add(Expr::col(MessageIden::Mailbox).like(format!("{mailbox}/%")))
                     .add(Expr::col(MessageIden::Mailbox).eq(mailbox))
             }))
-            .add_option(self.states.map(|states| {
-                Expr::col(MessageIden::State).is_in(
-                    states
-                        .iter()
-                        .map(|state| (*state).into())
-                        .collect::<Vec<u32>>(),
-                )
-            }))
+            .add_option(
+                self.states
+                    .map(|states| Expr::col(MessageIden::State).is_in(states.iter().copied())),
+            )
     }
 
     // Determine whether a message filter is unrestricted and matches all messages

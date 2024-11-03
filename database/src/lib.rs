@@ -1,5 +1,9 @@
-#![deny(clippy::pedantic)]
-#![allow(clippy::missing_errors_doc)]
+#![warn(clippy::pedantic, clippy::nursery)]
+#![allow(
+    clippy::future_not_send,
+    clippy::missing_const_for_fn,
+    clippy::missing_errors_doc
+)]
 
 mod backend;
 mod database;

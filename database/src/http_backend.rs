@@ -25,7 +25,7 @@ impl HttpBackend {
                     .context("Invalid authorization token")?,
             );
         }
-        Ok(HttpBackend {
+        Ok(Self {
             client: Client::builder()
                 .default_headers(headers)
                 .build()

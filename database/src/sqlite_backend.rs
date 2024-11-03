@@ -32,7 +32,7 @@ impl SqliteBackend {
         let pool = SqlitePool::connect_with(options)
             .await
             .context("Failed to open database")?;
-        let backend = SqliteBackend { pool };
+        let backend = Self { pool };
         backend.init().await?;
         Ok(backend)
     }
@@ -63,7 +63,7 @@ impl SqliteBackend {
         let pool = SqlitePool::connect_with(options)
             .await
             .context("Failed to open database")?;
-        let backend = SqliteBackend { pool };
+        let backend = Self { pool };
 
         // Reset the database
         let sql = Table::drop()
