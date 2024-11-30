@@ -59,7 +59,7 @@ where
 #[allow(clippy::module_name_repetitions)]
 pub async fn import_messages<B: Backend>(
     db: &Database<B>,
-    config: &Option<Config>,
+    config: Option<&Config>,
     new_messages: Vec<NewMessage>,
 ) -> Result<Vec<Message>> {
     let messages = db

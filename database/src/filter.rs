@@ -8,6 +8,7 @@ use std::str::FromStr;
 use std::string::ToString;
 
 // Serialize Option<Vec<T>> into a comma-separated string so that serde_urlencoded can handle it
+#[allow(clippy::ref_option)]
 fn serialize_vec_to_csv<S, T>(vec: &Option<Vec<T>>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,

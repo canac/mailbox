@@ -137,13 +137,17 @@ async fn run<B: Backend + Send + Sync + 'static>(
                 content,
                 state: Some(cli_state),
             }];
-            let messages = import_messages(&db, &config, raw_messages).await?;
+            let messages = import_messages(&db, config.as_ref(), raw_messages).await?;
             print!("{}", formatter.format_messages(&messages)?);
         }
 
         Command::Import { format } => {
-            let messages =
-                import_messages(&db, &config, read_messages_stdin(stdin().lock(), format)).await?;
+            let messages = import_messages(
+                &db,
+                config.as_ref(),
+                read_messages_stdin(stdin().lock(), format),
+            )
+            .await?;
             print!("{}", formatter.format_messages(&messages)?);
         }
 
