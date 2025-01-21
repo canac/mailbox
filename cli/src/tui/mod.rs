@@ -66,7 +66,7 @@ fn run_app<B: Backend>(
 
         let timeout = tick_rate
             .checked_sub(last_tick.elapsed())
-            .unwrap_or_else(|| Duration::from_secs(0));
+            .unwrap_or_default();
         if event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
                 if key.code == KeyCode::Char('q') {
