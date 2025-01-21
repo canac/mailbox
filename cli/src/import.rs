@@ -56,7 +56,6 @@ where
 }
 
 // Add multiple messages to the database
-#[allow(clippy::module_name_repetitions)]
 pub async fn import_messages<B: Backend>(
     db: &Database<B>,
     config: Option<&Config>,

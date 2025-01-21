@@ -86,7 +86,6 @@ impl Display for TruncatedLine {
 // Returns the truncated string and its width
 // Uses the algorithm in https://github.com/Aetf/unicode-truncate with added
 // support for adding ellipses when the string is truncated
-#[allow(clippy::module_name_repetitions)]
 pub fn truncate_string(input: &str, width: usize) -> (String, usize) {
     let (add_ellipsis, byte_index, new_width) = input
         .char_indices()
