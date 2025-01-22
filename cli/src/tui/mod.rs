@@ -42,7 +42,7 @@ pub fn run<B: DbBackend + Send + Sync + 'static>(
     let mut terminal = Terminal::new(backend)?;
 
     // Create app and run it
-    let tick_rate = Duration::from_millis(30);
+    let tick_rate = Duration::from_millis(16);
     let app = App::new(db, initial_mailbox, initial_states)?;
     let res = run_app(&mut terminal, app, tick_rate);
 
@@ -61,25 +61,30 @@ fn run_app<B: Backend>(
 ) -> Result<()> {
     let mut last_tick = Instant::now();
     loop {
-        app.handle_worker_responses()?;
-        terminal.draw(|f| ui(f, &mut app))?;
-
         let timeout = tick_rate
             .checked_sub(last_tick.elapsed())
             .unwrap_or_default();
+        let mut updated = false;
         if event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
                 if key.code == KeyCode::Char('q') {
                     return Ok(());
                 }
 
-                handle_global_key(&mut app, key)?;
-                match app.active_pane {
-                    Pane::Mailboxes => handle_mailbox_key(&mut app, key)?,
-                    Pane::Messages => handle_message_key(&mut app, key)?,
-                };
+                updated = updated || handle_global_key(&mut app, key)?;
+                updated = updated
+                    || match app.active_pane {
+                        Pane::Mailboxes => handle_mailbox_key(&mut app, key)?,
+                        Pane::Messages => handle_message_key(&mut app, key)?,
+                    };
             }
         }
+
+        updated = updated || app.handle_worker_responses()?;
+        if updated {
+            terminal.draw(|f| ui(f, &mut app))?;
+        }
+
         if last_tick.elapsed() >= tick_rate {
             last_tick = Instant::now();
         }
@@ -87,7 +92,8 @@ fn run_app<B: Backend>(
 }
 
 // Respond to keyboard presses for all panes
-fn handle_global_key(app: &mut App, key: KeyEvent) -> Result<()> {
+// Return true if an event was processed
+fn handle_global_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     let control = key.modifiers.contains(KeyModifiers::CONTROL);
     match key.code {
         KeyCode::Char('1') => app.activate_pane(Pane::Mailboxes),
@@ -106,14 +112,15 @@ fn handle_global_key(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Char('u') if control => app.toggle_active_state(State::Unread)?,
         KeyCode::Char('r') if control => app.toggle_active_state(State::Read)?,
         KeyCode::Char('a') if control => app.toggle_active_state(State::Archived)?,
-        _ => {}
+        _ => return Ok(false),
     }
 
-    Ok(())
+    Ok(true)
 }
 
 // Respond to keyboard presses for the mailbox pane
-fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
+// Return true if an event was processed
+fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     let control = key.modifiers.contains(KeyModifiers::CONTROL);
     let old_active_mailbox = app
         .mailboxes
@@ -144,26 +151,26 @@ fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
             if let Some(active_mailbox) = old_active_mailbox {
                 app.set_mailbox_message_state(active_mailbox, State::Archived)?;
             }
-            return Ok(());
+            return Ok(true);
         }
         KeyCode::Char('r') => {
             if let Some(active_mailbox) = old_active_mailbox {
                 app.set_mailbox_message_state(active_mailbox, State::Read)?;
             }
-            return Ok(());
+            return Ok(true);
         }
         KeyCode::Char('u') => {
             if let Some(active_mailbox) = old_active_mailbox {
                 app.set_mailbox_message_state(active_mailbox, State::Unread)?;
             }
-            return Ok(());
+            return Ok(true);
         }
-        _ => return Ok(()),
+        _ => return Ok(false),
     }
 
     let active_mailbox = app.mailboxes.get_cursor_item().map(|item| &item.mailbox);
     if active_mailbox == old_active_mailbox.as_ref() {
-        return Ok(());
+        return Ok(true);
     }
 
     if let Some(active_mailbox) = active_mailbox {
@@ -177,7 +184,7 @@ fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
         if local_update {
             // Optimistically update the messages list
             app.filter_messages();
-            return Ok(());
+            return Ok(true);
         }
     }
 
@@ -185,11 +192,11 @@ fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<()> {
     app.update_mailboxes()?;
     app.update_messages()?;
 
-    Ok(())
+    Ok(true)
 }
 
 // Respond to keyboard presses for the messages pane
-fn handle_message_key(app: &mut App, key: KeyEvent) -> Result<()> {
+fn handle_message_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     let control = key.modifiers.contains(KeyModifiers::CONTROL);
     match key.code {
         KeyCode::Char('s') if control => app.messages.set_selection_mode(
@@ -231,10 +238,10 @@ fn handle_message_key(app: &mut App, key: KeyEvent) -> Result<()> {
                 open_message(message);
             }
         }
-        _ => {}
+        _ => return Ok(false),
     }
 
-    Ok(())
+    Ok(true)
 }
 
 fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {

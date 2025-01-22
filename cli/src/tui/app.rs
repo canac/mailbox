@@ -150,8 +150,11 @@ impl App {
     }
 
     // Handle any pending worker responses without blocking
-    pub fn handle_worker_responses(&mut self) -> Result<()> {
+    // Return true if any responses were processed
+    pub fn handle_worker_responses(&mut self) -> Result<bool> {
+        let mut received = false;
         while let Ok(res) = self.worker_rx.try_recv() {
+            received = true;
             match res {
                 Response::InitialLoad {
                     messages,
@@ -195,7 +198,7 @@ impl App {
                 }
             };
         }
-        Ok(())
+        Ok(received)
     }
 
     // Return a vector of the active states
