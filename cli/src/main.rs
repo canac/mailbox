@@ -198,7 +198,7 @@ async fn run<B: Backend + Send + Sync + 'static>(
         }
 
         Command::Tui { mailbox, state } => {
-            crate::tui::run(db, mailbox, states_from_view_message_state(state)).await?;
+            crate::tui::run(db, mailbox, states_from_view_message_state(state))?;
         }
 
         Command::Config { subcommand } => match subcommand {

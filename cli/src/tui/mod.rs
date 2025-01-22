@@ -29,7 +29,7 @@ use ratatui::{
 use std::io;
 use std::time::{Duration, Instant};
 
-pub async fn run<B: DbBackend + Send + Sync + 'static>(
+pub fn run<B: DbBackend + Send + Sync + 'static>(
     db: Database<B>,
     initial_mailbox: Option<Mailbox>,
     initial_states: Vec<State>,
@@ -43,7 +43,7 @@ pub async fn run<B: DbBackend + Send + Sync + 'static>(
 
     // Create app and run it
     let tick_rate = Duration::from_millis(30);
-    let app = App::new(db, initial_mailbox, initial_states).await?;
+    let app = App::new(db, initial_mailbox, initial_states)?;
     let res = run_app(&mut terminal, app, tick_rate);
 
     // Restore terminal

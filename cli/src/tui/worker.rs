@@ -1,11 +1,15 @@
 use super::monotonic_counter::MonotonicCounter;
-use database::{Backend, Database, Filter, MailboxInfo, Message, State};
+use database::{Backend, Database, Filter, Mailbox, MailboxInfo, Message, State};
 use std::sync::mpsc::{self, channel};
 use std::sync::Arc;
 use std::thread;
 use tokio::runtime::Handle;
 
 pub enum Request {
+    InitialLoad {
+        filter: Filter,
+        initial_mailbox: Option<Mailbox>,
+    },
     LoadMessages(Filter),
     LoadMailboxes(Filter),
     ChangeMessageStates {
@@ -22,6 +26,11 @@ pub enum Request {
 }
 
 pub enum Response {
+    InitialLoad {
+        mailboxes: Vec<MailboxInfo>,
+        messages: Vec<Message>,
+        initial_mailbox: Option<Mailbox>,
+    },
     LoadMessages(Vec<Message>),
     LoadMailboxes(Vec<MailboxInfo>),
     Refresh,
@@ -48,6 +57,30 @@ pub fn spawn<B: Backend + Send + Sync + 'static>(db: Arc<Database<B>>) -> (Sende
         let mailbox_counter = mailbox_counter.clone();
         handle.spawn(async move {
             match req {
+                Request::InitialLoad {
+                    filter,
+                    initial_mailbox,
+                } => {
+                    // Load the mailboxes and messages in parallel
+                    let mailbox_db = Arc::clone(&db);
+                    let mailbox_filter = filter.clone();
+                    let mailboxes =
+                        tokio::spawn(
+                            async move { mailbox_db.load_mailboxes(mailbox_filter).await },
+                        );
+
+                    let messages_filter = filter.with_mailbox_option(initial_mailbox.clone());
+                    let messages =
+                        tokio::spawn(async move { db.load_messages(messages_filter).await });
+
+                    tx_res
+                        .send(Response::InitialLoad {
+                            mailboxes: mailboxes.await.unwrap().unwrap(),
+                            messages: messages.await.unwrap().unwrap(),
+                            initial_mailbox,
+                        })
+                        .unwrap();
+                }
                 Request::LoadMessages(filter) => {
                     let req_id = message_counter.next();
                     let messages = db.load_messages(filter).await.unwrap();

@@ -57,14 +57,14 @@ pub struct App {
 }
 
 impl App {
-    pub async fn new<B: Backend + Send + Sync + 'static>(
+    pub fn new<B: Backend + Send + Sync + 'static>(
         db: Database<B>,
         initial_mailbox: Option<database::Mailbox>,
         initial_states: Vec<State>,
     ) -> Result<Self> {
         let db = Arc::new(db);
         let (worker_tx, worker_rx) = spawn(Arc::clone(&db));
-        let mut app = Self {
+        let app = Self {
             active_pane: Pane::Messages,
             mailboxes: TreeList::new(),
             messages: MultiselectList::new(),
@@ -72,20 +72,10 @@ impl App {
             worker_tx,
             worker_rx,
         };
-        app.mailboxes.replace_items(Self::build_mailbox_list(
-            db.load_mailboxes(app.get_display_filter()).await?,
-        ));
-        if let Some(initial_mailbox) = initial_mailbox {
-            app.mailboxes.set_cursor(
-                app.mailboxes
-                    .get_items()
-                    .iter()
-                    .position(|mailbox| mailbox.mailbox == initial_mailbox),
-            );
-        }
-        // Load the messages with the initial mailbox filter applied
-        app.messages
-            .replace_items(db.load_messages(app.get_display_filter()).await?);
+        app.worker_tx.send(Request::InitialLoad {
+            filter: app.get_display_filter(),
+            initial_mailbox,
+        })?;
         Ok(app)
     }
 
@@ -163,6 +153,29 @@ impl App {
     pub fn handle_worker_responses(&mut self) -> Result<()> {
         while let Ok(res) = self.worker_rx.try_recv() {
             match res {
+                Response::InitialLoad {
+                    messages,
+                    mailboxes,
+                    initial_mailbox,
+                } => {
+                    self.mailboxes
+                        .replace_items(Self::build_mailbox_list(mailboxes));
+                    if let Some(ref initial_mailbox) = initial_mailbox {
+                        self.mailboxes.set_cursor(
+                            self.mailboxes
+                                .get_items()
+                                .iter()
+                                .position(|mailbox| &mailbox.mailbox == initial_mailbox),
+                        );
+                    }
+                    if initial_mailbox.is_some() && self.mailboxes.get_cursor().is_none() {
+                        // The provided initial mailbox does not exist, so discard the messages loaded with the invalid
+                        // mailbox and reload them without a mailbox filter
+                        self.update_messages()?;
+                    } else {
+                        self.messages.replace_items(messages);
+                    }
+                }
                 Response::LoadMessages(messages) => self.messages.replace_items(messages),
                 Response::LoadMailboxes(mailboxes) => {
                     let old_display_filter = self.get_display_filter();
