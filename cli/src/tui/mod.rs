@@ -16,10 +16,10 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use database::{Backend as DbBackend, Database, Mailbox, Message, State};
+use database::{Backend, Database, Mailbox, Message, State};
 use linkify::{LinkFinder, LinkKind};
 use ratatui::{
-    backend::{Backend, CrosstermBackend},
+    backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
@@ -29,7 +29,7 @@ use ratatui::{
 use std::io;
 use std::time::{Duration, Instant};
 
-pub fn run<B: DbBackend + Send + Sync + 'static>(
+pub fn run<B: Backend + Send + Sync + 'static>(
     db: Database<B>,
     initial_mailbox: Option<Mailbox>,
     initial_states: Vec<State>,
@@ -54,7 +54,7 @@ pub fn run<B: DbBackend + Send + Sync + 'static>(
     res
 }
 
-fn run_app<B: Backend>(
+fn run_app<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
     mut app: App,
     tick_rate: Duration,
@@ -244,18 +244,12 @@ fn handle_message_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     Ok(true)
 }
 
-fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
+fn ui(frame: &mut Frame, app: &mut App) {
     // Create the content and footer chunks
-    let frame_size = frame.size();
+    let frame_size = frame.area();
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Length(frame_size.height.saturating_sub(1)),
-                Constraint::Length(1),
-            ]
-            .as_ref(),
-        )
+        .constraints([Constraint::Fill(1), Constraint::Length(1)].as_ref())
         .split(frame_size);
 
     // Create the mailbox and message chunks
@@ -270,7 +264,7 @@ fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
 }
 
 // Render the footer section of the UI
-fn render_footer<B: Backend>(frame: &mut Frame<B>, app: &App, area: Rect) {
+fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
     const ACTIVE_STYLE: Style = Style::new().fg(Color::Black).bg(Color::Green);
     const INACTIVE_STYLE: Style = Style::new();
     const SELECTING_STYLE: Style = Style::new().fg(Color::LightBlue);
@@ -316,7 +310,7 @@ fn render_footer<B: Backend>(frame: &mut Frame<B>, app: &App, area: Rect) {
 }
 
 // Render the mailboxes section of the UI
-fn render_mailboxes<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) {
+fn render_mailboxes(frame: &mut Frame, app: &mut App, area: Rect) {
     const MAILBOX_STYLE: Style = Style::new();
     const MAILBOX_BORDER_STYLE: Style = Style::new().fg(Color::LightBlue);
     const MESSAGE_BORDER_STYLE: Style = Style::new();
@@ -361,7 +355,7 @@ fn render_mailboxes<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect)
 }
 
 // Render the messages section of the UI
-fn render_messages<B: Backend>(frame: &mut Frame<B>, app: &mut App, area: Rect) {
+fn render_messages(frame: &mut Frame, app: &mut App, area: Rect) {
     const BULLET_STYLE: Style = Style::new().add_modifier(Modifier::BOLD);
     const UNREAD_STYLE: Style = Style::new().fg(Color::Red).add_modifier(Modifier::BOLD);
     const TIMESTAMP_STYLE: Style = Style::new().fg(Color::Yellow);
