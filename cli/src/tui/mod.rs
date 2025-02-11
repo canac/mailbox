@@ -378,13 +378,16 @@ fn render_mailboxes(frame: &mut Frame, app: &mut App, area: Rect) {
 
 // Render the messages section of the UI
 fn render_messages(frame: &mut Frame, app: &mut App, area: Rect) {
-    const BULLET_STYLE: Style = Style::new().add_modifier(Modifier::BOLD);
+    const HIGHLIGHT_COLOR: Color = Color::LightBlue;
+    const BULLET_STYLE: Style = Style::new()
+        .fg(HIGHLIGHT_COLOR)
+        .add_modifier(Modifier::BOLD);
     const UNREAD_STYLE: Style = Style::new().fg(Color::Red).add_modifier(Modifier::BOLD);
     const TIMESTAMP_STYLE: Style = Style::new().fg(Color::Yellow);
-    const MESSAGE_BORDER_STYLE: Style = Style::new().fg(Color::LightBlue);
+    const MESSAGE_BORDER_STYLE: Style = Style::new().fg(HIGHLIGHT_COLOR);
     const MAILBOX_BORDER_STYLE: Style = Style::new();
     const HIGHLIGHT_STYLE: Style = Style::new()
-        .bg(Color::LightBlue)
+        .bg(HIGHLIGHT_COLOR)
         .add_modifier(Modifier::BOLD);
     let messages = app
         .messages
