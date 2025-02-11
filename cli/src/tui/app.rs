@@ -7,6 +7,7 @@ use database::{Backend, Database, Filter, MailboxInfo, Message, State};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
+use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 pub enum Pane {
@@ -52,6 +53,7 @@ pub struct App {
     pub(crate) messages: MultiselectList<Message>,
     pub(crate) active_pane: Pane,
     pub(crate) active_states: HashSet<State>,
+    pub(crate) pending_requests: Arc<AtomicUsize>,
     worker_tx: Sender,
     worker_rx: Receiver,
 }
@@ -63,7 +65,8 @@ impl App {
         initial_states: Vec<State>,
     ) -> Result<Self> {
         let db = Arc::new(db);
-        let (worker_tx, worker_rx) = spawn(Arc::clone(&db));
+        let pending_requests = Arc::new(AtomicUsize::new(0));
+        let (worker_tx, worker_rx) = spawn(Arc::clone(&db), Arc::clone(&pending_requests));
         let app = Self {
             active_pane: Pane::Messages,
             mailboxes: TreeList::new(),
@@ -71,6 +74,7 @@ impl App {
             active_states: initial_states.into_iter().collect(),
             worker_tx,
             worker_rx,
+            pending_requests,
         };
         app.worker_tx.send(Request::InitialLoad {
             filter: app.get_display_filter(),

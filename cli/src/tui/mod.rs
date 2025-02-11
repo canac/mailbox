@@ -23,10 +23,11 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, List, ListItem},
     Frame, Terminal,
 };
 use std::io;
+use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 pub fn run<B: Backend + Send + Sync + 'static>(
@@ -258,17 +259,24 @@ fn ui(frame: &mut Frame, app: &mut App) {
         .constraints([Constraint::Percentage(25), Constraint::Percentage(75)].as_ref())
         .split(chunks[0]);
 
-    render_footer(frame, app, chunks[1]);
+    // Create the status and loading chunks
+    let footer_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Fill(1), Constraint::Length(10)].as_ref())
+        .split(chunks[1]);
+
+    render_status(frame, app, footer_chunks[0]);
+    render_loading(frame, app, footer_chunks[1]);
     render_mailboxes(frame, app, content_chunks[0]);
     render_messages(frame, app, content_chunks[1]);
 }
 
-// Render the footer section of the UI
-fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
+// Render the status section of the footer UI
+fn render_status(frame: &mut Frame, app: &App, area: Rect) {
     const ACTIVE_STYLE: Style = Style::new().fg(Color::Black).bg(Color::Green);
     const INACTIVE_STYLE: Style = Style::new();
     const SELECTING_STYLE: Style = Style::new().fg(Color::LightBlue);
-    let footer = Paragraph::new(Line::from(vec![
+    let status = Line::from(vec![
         Span::raw(" "),
         Span::styled(
             " unread ",
@@ -305,8 +313,22 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
             },
             SELECTING_STYLE,
         ),
-    ]));
-    frame.render_widget(footer, area);
+    ]);
+    frame.render_widget(status, area);
+}
+
+// Render the loading section of the footer UI
+fn render_loading(frame: &mut Frame, app: &App, area: Rect) {
+    const LOADING_STYLE: Style = Style::new().fg(Color::LightBlue);
+    let loading = Line::from(vec![Span::styled(
+        if app.pending_requests.load(Ordering::Relaxed) > 0 {
+            "Loading..."
+        } else {
+            ""
+        },
+        LOADING_STYLE,
+    )]);
+    frame.render_widget(loading, area);
 }
 
 // Render the mailboxes section of the UI
