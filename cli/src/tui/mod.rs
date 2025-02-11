@@ -28,7 +28,7 @@ use ratatui::{
 };
 use std::io;
 use std::sync::atomic::Ordering;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 pub fn run<B: Backend + Send + Sync + 'static>(
     db: Database<B>,
@@ -60,35 +60,37 @@ fn run_app<B: ratatui::backend::Backend>(
     mut app: App,
     tick_rate: Duration,
 ) -> Result<()> {
-    let mut last_tick = Instant::now();
+    let mut first_render = true;
+    let mut last_size = None;
     loop {
-        let timeout = tick_rate
-            .checked_sub(last_tick.elapsed())
-            .unwrap_or_default();
-        let mut updated = false;
-        if event::poll(timeout)? {
-            if let Event::Key(key) = event::read()? {
-                if key.code == KeyCode::Char('q') {
-                    return Ok(());
-                }
-
-                updated = updated || handle_global_key(&mut app, key)?;
-                updated = updated
-                    || match app.active_pane {
+        let mut updated = first_render;
+        if event::poll(tick_rate)? {
+            match event::read()? {
+                Event::Key(key) => {
+                    if key.code == KeyCode::Char('q') {
+                        return Ok(());
+                    }
+                    updated = handle_global_key(&mut app, key)? || updated;
+                    updated = match app.active_pane {
                         Pane::Mailboxes => handle_mailbox_key(&mut app, key)?,
                         Pane::Messages => handle_message_key(&mut app, key)?,
-                    };
+                    } || updated;
+                }
+                Event::Resize(x, y) => {
+                    let current_size = Some((x, y));
+                    updated = last_size != current_size || updated;
+                    last_size = current_size;
+                }
+                _ => {}
             }
         }
 
-        updated = updated || app.handle_worker_responses()?;
+        updated = app.handle_worker_responses()? || updated;
         if updated {
             terminal.draw(|f| ui(f, &mut app))?;
         }
 
-        if last_tick.elapsed() >= tick_rate {
-            last_tick = Instant::now();
-        }
+        first_render = false;
     }
 }
 
