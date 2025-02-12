@@ -375,7 +375,10 @@ fn render_mailboxes(frame: &mut Frame, app: &mut App, area: Rect) {
                 )),
         )
         .highlight_style(MAILBOX_HIGHLIGHT_STYLE);
-    frame.render_stateful_widget(mailboxes_list, area, app.mailboxes.get_list_state());
+    let mailboxes_state = app.mailboxes.get_list_state();
+    // Make the list scroll up as far as possible while still showing the selected item
+    *mailboxes_state.offset_mut() = 0;
+    frame.render_stateful_widget(mailboxes_list, area, mailboxes_state);
 }
 
 // Render the messages section of the UI
@@ -437,7 +440,10 @@ fn render_messages(frame: &mut Frame, app: &mut App, area: Rect) {
                 )),
         )
         .highlight_style(HIGHLIGHT_STYLE);
-    frame.render_stateful_widget(messages_list, area, app.messages.get_list_state());
+    let messages_state = app.messages.get_list_state();
+    // Make the list scroll up as far as possible while still showing the selected item
+    *messages_state.offset_mut() = 0;
+    frame.render_stateful_widget(messages_list, area, messages_state);
 }
 
 // If the message contains a URL, open it in a web browser
