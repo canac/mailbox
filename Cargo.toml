@@ -7,7 +7,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.8.4"
+version = "0.8.5"
 authors = ["Caleb Cox"]
 edition = "2021"
 description = "Message manager for output from local and remote scripts"
