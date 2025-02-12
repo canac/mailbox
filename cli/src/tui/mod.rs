@@ -12,7 +12,10 @@ use anyhow::Result;
 use chrono::Utc;
 use chrono_humanize::HumanTime;
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
+        KeyEventState, KeyModifiers, MouseButton, MouseEventKind,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -20,7 +23,7 @@ use database::{Backend, Database, Mailbox, Message, State};
 use linkify::{LinkFinder, LinkKind};
 use ratatui::{
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Position, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem},
@@ -29,6 +32,13 @@ use ratatui::{
 use std::io;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
+
+struct AppLayout {
+    mailboxes: Rect,
+    messages: Rect,
+    status: Rect,
+    loading: Rect,
+}
 
 pub fn run<B: Backend + Send + Sync + 'static>(
     db: Database<B>,
@@ -39,6 +49,7 @@ pub fn run<B: Backend + Send + Sync + 'static>(
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
@@ -50,6 +61,7 @@ pub fn run<B: Backend + Send + Sync + 'static>(
     // Restore terminal
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    execute!(terminal.backend_mut(), DisableMouseCapture)?;
     terminal.show_cursor()?;
 
     res
@@ -64,6 +76,7 @@ fn run_app<B: ratatui::backend::Backend>(
     let mut last_size = None;
     loop {
         let mut updated = first_render;
+        let mut click_position = None;
         if event::poll(tick_rate)? {
             match event::read()? {
                 Event::Key(key) => {
@@ -75,10 +88,33 @@ fn run_app<B: ratatui::backend::Backend>(
                         // Stop processing so that the active pane doesn't also handle this event
                         updated = true;
                     } else {
-                        updated = match app.active_pane {
-                            Pane::Mailboxes => handle_mailbox_key(&mut app, key)?,
-                            Pane::Messages => handle_message_key(&mut app, key)?,
-                        } || updated;
+                        updated = handle_pane_key(&mut app, key)? || updated;
+                    }
+                }
+                Event::Mouse(event) => {
+                    fn synthetic_key_event(code: KeyCode) -> KeyEvent {
+                        KeyEvent {
+                            code,
+                            modifiers: KeyModifiers::NONE,
+                            kind: KeyEventKind::Press,
+                            state: KeyEventState::empty(),
+                        }
+                    }
+
+                    if event.kind == MouseEventKind::Down(MouseButton::Left) {
+                        // Save the click position to activate the clicked pane during rendering because we only know the
+                        // pane areas during rendering
+                        click_position = Some(Position {
+                            x: event.column,
+                            y: event.row,
+                        });
+                        updated = true;
+                    } else if event.kind == MouseEventKind::ScrollDown {
+                        updated = handle_pane_key(&mut app, synthetic_key_event(KeyCode::Down))?
+                            || updated;
+                    } else if event.kind == MouseEventKind::ScrollUp {
+                        updated =
+                            handle_pane_key(&mut app, synthetic_key_event(KeyCode::Up))? || updated;
                     }
                 }
                 Event::Resize(x, y) => {
@@ -92,7 +128,19 @@ fn run_app<B: ratatui::backend::Backend>(
 
         updated = app.handle_worker_responses()? || updated;
         if updated {
-            terminal.draw(|f| ui(f, &mut app))?;
+            terminal.draw(|frame| {
+                let layout = layout(frame);
+                if let Some(click_position) = click_position {
+                    // Activate the clicked pane if any
+                    if layout.mailboxes.contains(click_position) {
+                        app.activate_pane(Pane::Mailboxes);
+                    } else if layout.messages.contains(click_position) {
+                        app.activate_pane(Pane::Messages);
+                    }
+                }
+
+                ui(frame, &mut app, &layout);
+            })?;
         }
 
         first_render = false;
@@ -124,6 +172,15 @@ fn handle_global_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     }
 
     Ok(true)
+}
+
+// Respond to keyboard presses for the active pane
+// Return true if an event was processed
+fn handle_pane_key(app: &mut App, key: KeyEvent) -> Result<bool> {
+    Ok(match app.active_pane {
+        Pane::Mailboxes => handle_mailbox_key(app, key)?,
+        Pane::Messages => handle_message_key(app, key)?,
+    })
 }
 
 // Respond to keyboard presses for the mailbox pane
@@ -252,7 +309,8 @@ fn handle_message_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     Ok(true)
 }
 
-fn ui(frame: &mut Frame, app: &mut App) {
+// Calculate the positions of each of the areas in the frame
+fn layout(frame: &Frame) -> AppLayout {
     // Create the content and footer chunks
     let frame_size = frame.area();
     let chunks = Layout::default()
@@ -272,10 +330,20 @@ fn ui(frame: &mut Frame, app: &mut App) {
         .constraints([Constraint::Fill(1), Constraint::Length(10)].as_ref())
         .split(chunks[1]);
 
-    render_status(frame, app, footer_chunks[0]);
-    render_loading(frame, app, footer_chunks[1]);
-    render_mailboxes(frame, app, content_chunks[0]);
-    render_messages(frame, app, content_chunks[1]);
+    AppLayout {
+        mailboxes: content_chunks[0],
+        messages: content_chunks[1],
+        status: footer_chunks[0],
+        loading: footer_chunks[1],
+    }
+}
+
+// Render the frame into the pre-calulated layout
+fn ui(frame: &mut Frame, app: &mut App, layout: &AppLayout) {
+    render_mailboxes(frame, app, layout.mailboxes);
+    render_messages(frame, app, layout.messages);
+    render_status(frame, app, layout.status);
+    render_loading(frame, app, layout.loading);
 }
 
 // Render the status section of the footer UI
