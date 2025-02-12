@@ -70,11 +70,16 @@ fn run_app<B: ratatui::backend::Backend>(
                     if key.code == KeyCode::Char('q') {
                         return Ok(());
                     }
-                    updated = handle_global_key(&mut app, key)? || updated;
-                    updated = match app.active_pane {
-                        Pane::Mailboxes => handle_mailbox_key(&mut app, key)?,
-                        Pane::Messages => handle_message_key(&mut app, key)?,
-                    } || updated;
+
+                    if handle_global_key(&mut app, key)? {
+                        // Stop processing so that the active pane doesn't also handle this event
+                        updated = true;
+                    } else {
+                        updated = match app.active_pane {
+                            Pane::Mailboxes => handle_mailbox_key(&mut app, key)?,
+                            Pane::Messages => handle_message_key(&mut app, key)?,
+                        } || updated;
+                    }
                 }
                 Event::Resize(x, y) => {
                     let current_size = Some((x, y));
