@@ -1,4 +1,5 @@
 mod app;
+mod input_event;
 mod monotonic_counter;
 mod multiselect_list;
 mod navigable_list;
@@ -6,6 +7,7 @@ mod tree_list;
 mod worker;
 
 use self::app::{App, Pane};
+use self::input_event::InputEvent;
 use self::multiselect_list::SelectionMode;
 use self::navigable_list::NavigableList;
 use anyhow::Result;
@@ -13,8 +15,7 @@ use chrono::Utc;
 use chrono_humanize::HumanTime;
 use crossterm::{
     event::{
-        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
-        KeyEventState, KeyModifiers, MouseButton, MouseEventKind,
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, MouseButton, MouseEventKind,
     },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -80,27 +81,19 @@ fn run_app<B: ratatui::backend::Backend>(
         if event::poll(tick_rate)? {
             match event::read()? {
                 Event::Key(key) => {
-                    if key.code == KeyCode::Char('q') {
+                    let input_event = InputEvent::from_event(key);
+                    if input_event.key == KeyCode::Char('q') {
                         return Ok(());
                     }
 
-                    if handle_global_key(&mut app, key)? {
+                    if handle_global_key(&mut app, &input_event)? {
                         // Stop processing so that the active pane doesn't also handle this event
                         updated = true;
                     } else {
-                        updated = handle_pane_key(&mut app, key)? || updated;
+                        updated = handle_pane_key(&mut app, &input_event)? || updated;
                     }
                 }
                 Event::Mouse(event) => {
-                    fn synthetic_key_event(code: KeyCode) -> KeyEvent {
-                        KeyEvent {
-                            code,
-                            modifiers: KeyModifiers::NONE,
-                            kind: KeyEventKind::Press,
-                            state: KeyEventState::empty(),
-                        }
-                    }
-
                     if event.kind == MouseEventKind::Down(MouseButton::Left) {
                         // Save the click position to activate the clicked pane during rendering because we only know the
                         // pane areas during rendering
@@ -110,11 +103,11 @@ fn run_app<B: ratatui::backend::Backend>(
                         });
                         updated = true;
                     } else if event.kind == MouseEventKind::ScrollDown {
-                        updated = handle_pane_key(&mut app, synthetic_key_event(KeyCode::Down))?
+                        updated = handle_pane_key(&mut app, &InputEvent::from_key(KeyCode::Down))?
                             || updated;
                     } else if event.kind == MouseEventKind::ScrollUp {
-                        updated =
-                            handle_pane_key(&mut app, synthetic_key_event(KeyCode::Up))? || updated;
+                        updated = handle_pane_key(&mut app, &InputEvent::from_key(KeyCode::Up))?
+                            || updated;
                     }
                 }
                 Event::Resize(x, y) => {
@@ -149,9 +142,9 @@ fn run_app<B: ratatui::backend::Backend>(
 
 // Respond to keyboard presses for all panes
 // Return true if an event was processed
-fn handle_global_key(app: &mut App, key: KeyEvent) -> Result<bool> {
-    let control = key.modifiers.contains(KeyModifiers::CONTROL);
-    match key.code {
+fn handle_global_key(app: &mut App, event: &InputEvent) -> Result<bool> {
+    let control = event.control;
+    match event.key {
         KeyCode::Char('1') => app.activate_pane(Pane::Mailboxes),
         KeyCode::Char('2') => app.activate_pane(Pane::Messages),
         KeyCode::Right | KeyCode::Left => {
@@ -176,22 +169,22 @@ fn handle_global_key(app: &mut App, key: KeyEvent) -> Result<bool> {
 
 // Respond to keyboard presses for the active pane
 // Return true if an event was processed
-fn handle_pane_key(app: &mut App, key: KeyEvent) -> Result<bool> {
+fn handle_pane_key(app: &mut App, event: &InputEvent) -> Result<bool> {
     Ok(match app.active_pane {
-        Pane::Mailboxes => handle_mailbox_key(app, key)?,
-        Pane::Messages => handle_message_key(app, key)?,
+        Pane::Mailboxes => handle_mailbox_key(app, event)?,
+        Pane::Messages => handle_message_key(app, event)?,
     })
 }
 
 // Respond to keyboard presses for the mailbox pane
 // Return true if an event was processed
-fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<bool> {
-    let control = key.modifiers.contains(KeyModifiers::CONTROL);
+fn handle_mailbox_key(app: &mut App, event: &InputEvent) -> Result<bool> {
+    let control = event.control;
     let old_active_mailbox = app
         .mailboxes
         .get_cursor_item()
         .map(|item| item.mailbox.clone());
-    match key.code {
+    match event.key {
         KeyCode::Esc => {
             app.mailboxes.remove_cursor();
         }
@@ -261,9 +254,9 @@ fn handle_mailbox_key(app: &mut App, key: KeyEvent) -> Result<bool> {
 }
 
 // Respond to keyboard presses for the messages pane
-fn handle_message_key(app: &mut App, key: KeyEvent) -> Result<bool> {
-    let control = key.modifiers.contains(KeyModifiers::CONTROL);
-    match key.code {
+fn handle_message_key(app: &mut App, event: &InputEvent) -> Result<bool> {
+    let control = event.control;
+    match event.key {
         KeyCode::Char('s') if control => app.messages.set_selection_mode(
             if matches!(app.messages.get_selection_mode(), SelectionMode::Select) {
                 SelectionMode::None
