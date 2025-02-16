@@ -8,6 +8,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
 use std::sync::atomic::AtomicUsize;
+use std::sync::mpsc::TryRecvError;
 use std::sync::Arc;
 
 pub enum Pane {
@@ -157,7 +158,13 @@ impl App {
     // Return true if any responses were processed
     pub fn handle_worker_responses(&mut self) -> Result<bool> {
         let mut received = false;
-        while let Ok(res) = self.worker_rx.try_recv() {
+        loop {
+            let res = match self.worker_rx.try_recv() {
+                Ok(res) => res,
+                Err(TryRecvError::Empty) => return Ok(received),
+                Err(err) => return Err(err.into()),
+            };
+
             received = true;
             match res {
                 Response::InitialLoad {
@@ -202,7 +209,6 @@ impl App {
                 }
             };
         }
-        Ok(received)
     }
 
     // Return a vector of the active states
