@@ -78,7 +78,14 @@ fn run_app<B: ratatui::backend::Backend>(
     loop {
         let mut updated = first_render;
         let mut click_position = None;
-        if event::poll(tick_rate)? {
+        let mut first_event = true;
+        // Wait for the first event, then keep reading events until none are left
+        while event::poll(if first_event {
+            tick_rate
+        } else {
+            Duration::ZERO
+        })? {
+            first_event = false;
             match event::read()? {
                 Event::Key(key) => {
                     let input_event = InputEvent::from_event(key);
