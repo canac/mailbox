@@ -1,11 +1,11 @@
+use crate::Backend;
 use crate::database::MailboxInfo;
 use crate::filter::Filter;
 use crate::message::{Message, State};
 use crate::new_message::NewMessage;
-use crate::Backend;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use reqwest::Response;
-use reqwest::{header::HeaderMap, Client};
+use reqwest::{Client, header::HeaderMap};
 use serde_json::json;
 
 pub struct HttpBackend {

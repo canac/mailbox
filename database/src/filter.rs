@@ -174,9 +174,11 @@ mod tests {
     fn test_matches_all() {
         assert!(Filter::new().matches_all());
         assert!(!Filter::new().with_ids(vec![1]).matches_all());
-        assert!(!Filter::new()
-            .with_mailbox("foo".try_into().unwrap())
-            .matches_all());
+        assert!(
+            !Filter::new()
+                .with_mailbox("foo".try_into().unwrap())
+                .matches_all()
+        );
         assert!(!Filter::new().with_states(vec![State::Unread]).matches_all());
     }
 
@@ -197,32 +199,46 @@ mod tests {
     #[test]
     fn test_matches_message_mailbox_filter() {
         let message = get_message();
-        assert!(Filter::new()
-            .with_mailbox("parent".try_into().unwrap())
-            .matches_message(&message));
-        assert!(Filter::new()
-            .with_mailbox("parent/child".try_into().unwrap())
-            .matches_message(&message));
-        assert!(!Filter::new()
-            .with_mailbox("parent/child2".try_into().unwrap())
-            .matches_message(&message));
-        assert!(!Filter::new()
-            .with_mailbox("parent/child/grandchild".try_into().unwrap())
-            .matches_message(&message));
+        assert!(
+            Filter::new()
+                .with_mailbox("parent".try_into().unwrap())
+                .matches_message(&message)
+        );
+        assert!(
+            Filter::new()
+                .with_mailbox("parent/child".try_into().unwrap())
+                .matches_message(&message)
+        );
+        assert!(
+            !Filter::new()
+                .with_mailbox("parent/child2".try_into().unwrap())
+                .matches_message(&message)
+        );
+        assert!(
+            !Filter::new()
+                .with_mailbox("parent/child/grandchild".try_into().unwrap())
+                .matches_message(&message)
+        );
     }
 
     #[test]
     fn test_matches_message_state_filter() {
         let message = get_message();
-        assert!(Filter::new()
-            .with_states(vec![State::Unread])
-            .matches_message(&message));
-        assert!(Filter::new()
-            .with_states(vec![State::Unread, State::Read])
-            .matches_message(&message));
-        assert!(!Filter::new()
-            .with_states(vec![State::Read])
-            .matches_message(&message));
+        assert!(
+            Filter::new()
+                .with_states(vec![State::Unread])
+                .matches_message(&message)
+        );
+        assert!(
+            Filter::new()
+                .with_states(vec![State::Unread, State::Read])
+                .matches_message(&message)
+        );
+        assert!(
+            !Filter::new()
+                .with_states(vec![State::Read])
+                .matches_message(&message)
+        );
     }
 
     #[test]

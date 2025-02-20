@@ -4,10 +4,10 @@ mod cli;
 
 use actix_web::dev::{Service, ServiceResponse};
 use actix_web::error::{ErrorBadRequest, ErrorInternalServerError};
-use actix_web::http::header::{HeaderValue, ACCESS_CONTROL_ALLOW_ORIGIN};
+use actix_web::http::header::{ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue};
 use actix_web::middleware::DefaultHeaders;
 use actix_web::web::{self, Data, Json, Query, ServiceConfig};
-use actix_web::{delete, get, post, put, App, HttpResponse, HttpServer, Result};
+use actix_web::{App, HttpResponse, HttpServer, Result, delete, get, post, put};
 use anyhow::Context;
 use clap::Parser;
 use cli::Cli;
@@ -150,9 +150,9 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use actix_web::http::header;
-    use actix_web::test::{call_service, init_service, TestRequest};
     use actix_web::App;
+    use actix_web::http::header;
+    use actix_web::test::{TestRequest, call_service, init_service};
 
     use super::*;
 

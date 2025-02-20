@@ -1,7 +1,7 @@
 use crate::cli::TimestampFormat;
 use crate::message_components::MessageComponents;
 use crate::truncate::TruncatedLine;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{Local, TimeZone, Utc};
 use chrono_humanize::HumanTime;
 use database::{Message, State};

@@ -1,15 +1,15 @@
+use crate::Backend;
 use crate::database::MailboxInfo;
 use crate::filter::Filter;
 use crate::message::{Message, MessageIden, State};
 use crate::new_message::NewMessage;
-use crate::Backend;
 use anyhow::{Context, Result};
 use sea_query::{
     Alias, Asterisk, ColumnDef, Expr, Func, Keyword, Order, Query, SqliteQueryBuilder, Table, Value,
 };
 use sea_query_binder::SqlxBinder;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
-use sqlx::{query, Row, SqlitePool};
+use sqlx::{Row, SqlitePool, query};
 use std::fs::create_dir_all;
 use std::path::PathBuf;
 
@@ -324,10 +324,12 @@ mod tests {
     #[tokio::test]
     async fn test_add_invalid() -> Result<()> {
         let backend = SqliteBackend::new_test().await?;
-        assert!(backend
-            .add_messages(vec![make_message("mailbox", "", None)?])
-            .await
-            .is_err());
+        assert!(
+            backend
+                .add_messages(vec![make_message("mailbox", "", None)?])
+                .await
+                .is_err()
+        );
         Ok(())
     }
 

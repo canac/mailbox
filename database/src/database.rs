@@ -1,9 +1,9 @@
+use crate::Backend;
 use crate::filter::Filter;
 use crate::mailbox::Mailbox;
 use crate::message::{Message, State};
 use crate::new_message::NewMessage;
-use crate::Backend;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 
 fn validate_message(message: &NewMessage) -> Result<()> {
@@ -69,18 +69,22 @@ mod tests {
 
     #[test]
     fn test_validate() {
-        assert!(validate_message(&NewMessage {
-            mailbox: "mailbox".try_into().unwrap(),
-            content: String::new(),
-            state: None,
-        })
-        .is_err());
+        assert!(
+            validate_message(&NewMessage {
+                mailbox: "mailbox".try_into().unwrap(),
+                content: String::new(),
+                state: None,
+            })
+            .is_err()
+        );
 
-        assert!(validate_message(&NewMessage {
-            mailbox: "mailbox".try_into().unwrap(),
-            content: String::from("message"),
-            state: None,
-        })
-        .is_ok());
+        assert!(
+            validate_message(&NewMessage {
+                mailbox: "mailbox".try_into().unwrap(),
+                content: String::from("message"),
+                state: None,
+            })
+            .is_ok()
+        );
     }
 }

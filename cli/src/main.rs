@@ -17,7 +17,7 @@ mod tui;
 use crate::cli::{AddMessageState, Cli, Command, TimestampFormat};
 use crate::config::Config;
 use crate::import::read_messages_stdin;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 use cli::{ConfigSubcommand, ViewMessageState};
 use database::{Backend, Database, Filter, HttpBackend, NewMessage, SqliteBackend, State};
@@ -25,7 +25,7 @@ use directories::ProjectDirs;
 use import::import_messages;
 use message_formatter::MessageFormatter;
 use std::fs::create_dir_all;
-use std::io::{stdin, stdout, IsTerminal};
+use std::io::{IsTerminal, stdin, stdout};
 use std::path::PathBuf;
 
 // Return the directories where this project stores its data

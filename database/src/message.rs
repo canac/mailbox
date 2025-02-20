@@ -1,6 +1,6 @@
 use crate::Mailbox;
 use anyhow::anyhow;
-use sea_query::{enum_def, Value};
+use sea_query::{Value, enum_def};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;

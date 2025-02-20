@@ -1,15 +1,15 @@
 use super::multiselect_list::MultiselectList;
 use super::navigable_list::{Keyed, NavigableList};
 use super::tree_list::{Depth, TreeList};
-use super::worker::{spawn, Receiver, Request, Response, Sender};
+use super::worker::{Receiver, Request, Response, Sender, spawn};
 use anyhow::Result;
 use database::{Backend, Database, Filter, MailboxInfo, Message, State};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
+use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::mpsc::TryRecvError;
-use std::sync::Arc;
 
 pub enum Pane {
     Mailboxes,
