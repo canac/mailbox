@@ -97,7 +97,7 @@ async fn delete_messages(data: Data<AppData>, filter: Query<Filter>) -> Result<J
 fn get_config_factory(
     backend: SqliteBackend,
     auth_token: Option<&str>,
-) -> anyhow::Result<impl FnOnce(&mut ServiceConfig) + Clone> {
+) -> anyhow::Result<impl FnOnce(&mut ServiceConfig) + Clone + use<>> {
     let db = Arc::new(Database::new(backend));
     let auth_header = auth_token
         .map(|token| {
