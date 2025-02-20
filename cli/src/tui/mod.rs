@@ -242,9 +242,8 @@ fn handle_mailbox_key(app: &mut App, event: &InputEvent) -> Result<bool> {
         // If the new active mailbox is a descendant of the old one or if there wasn't an old active mailbox, the
         // messages list can be optimistically updated by filtering against the new active mailbox instead of needing
         // to refresh the whole list
-        let local_update = old_active_mailbox.map_or(true, |old_active_mailbox| {
-            old_active_mailbox.is_ancestor_of(active_mailbox)
-        });
+        let local_update = old_active_mailbox
+            .is_none_or(|old_active_mailbox| old_active_mailbox.is_ancestor_of(active_mailbox));
 
         if local_update {
             // Optimistically update the messages list
