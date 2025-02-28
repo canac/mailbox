@@ -200,12 +200,14 @@ impl App {
                         self.update_messages()?;
                     }
                 }
-                Response::Refresh => {
-                    // A change or delete messages mutation has completed that changed the active mailbox, so now
-                    // refresh the mailbox and message lists. We have to wait for the mutation to complete first to
-                    // avoid loading the unchanged messages.
-                    self.update_mailboxes()?;
-                    self.update_messages()?;
+                Response::Mutated { refresh } => {
+                    if refresh {
+                        // A change or delete messages mutation has completed that changed the active mailbox, so now
+                        // refresh the mailbox and message lists. We have to wait for the mutation to complete first to
+                        // avoid loading the unchanged messages.
+                        self.update_mailboxes()?;
+                        self.update_messages()?;
+                    }
                 }
             };
         }
@@ -284,12 +286,8 @@ impl App {
         self.worker_tx.send(Request::DeleteMessages {
             filter,
             // If changing the mailbox list changed the active mailbox, the message list needs to be refreshed
-            // The actual refreshing is done when handle_worker_response receives the refresh response
-            response: if old_display_filter == self.get_display_filter() {
-                None
-            } else {
-                Some(Response::Refresh)
-            },
+            // The actual refreshing is done when handle_worker_response receives the Mutated response
+            refresh: self.get_display_filter() != old_display_filter,
         })?;
 
         Ok(())
@@ -327,12 +325,8 @@ impl App {
             filter: action_filter,
             new_state,
             // If changing the mailbox list changed the active mailbox, the message list needs to be refreshed
-            // The actual refreshing is done when handle_worker_response receives the refresh response
-            response: if old_display_filter == self.get_display_filter() {
-                None
-            } else {
-                Some(Response::Refresh)
-            },
+            // The actual refreshing is done when handle_worker_response receives the Mutated response
+            refresh: self.get_display_filter() != old_display_filter,
         })?;
 
         Ok(())

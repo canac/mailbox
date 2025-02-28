@@ -16,13 +16,11 @@ pub enum Request {
     ChangeMessageStates {
         filter: Filter,
         new_state: State,
-        // This response will be sent after the message states have been changed
-        response: Option<Response>,
+        refresh: bool,
     },
     DeleteMessages {
         filter: Filter,
-        // This response will be sent after the messages have been deleted
-        response: Option<Response>,
+        refresh: bool,
     },
 }
 
@@ -34,7 +32,9 @@ pub enum Response {
     },
     LoadMessages(Vec<Message>),
     LoadMailboxes(Vec<MailboxInfo>),
-    Refresh,
+    Mutated {
+        refresh: bool,
+    },
 }
 
 pub type Sender = mpsc::Sender<Request>;
@@ -114,22 +114,18 @@ pub fn spawn<B: Backend + Send + Sync + 'static>(
                     Request::ChangeMessageStates {
                         filter,
                         new_state,
-                        response,
+                        refresh,
                     } => {
                         pending_requests.fetch_add(1, Ordering::Relaxed);
                         db.change_state(filter, new_state).await.unwrap();
                         pending_requests.fetch_sub(1, Ordering::Relaxed);
-                        if let Some(response) = response {
-                            tx_res.send(response).unwrap();
-                        }
+                        tx_res.send(Response::Mutated { refresh }).unwrap();
                     }
-                    Request::DeleteMessages { filter, response } => {
+                    Request::DeleteMessages { filter, refresh } => {
                         pending_requests.fetch_add(1, Ordering::Relaxed);
                         db.delete_messages(filter).await.unwrap();
                         pending_requests.fetch_sub(1, Ordering::Relaxed);
-                        if let Some(response) = response {
-                            tx_res.send(response).unwrap();
-                        }
+                        tx_res.send(Response::Mutated { refresh }).unwrap();
                     }
                 }
             });
