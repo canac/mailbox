@@ -114,7 +114,7 @@ pub fn truncate_string(input: &str, width: usize) -> (String, usize) {
     (
         format!(
             "{}{}",
-            input.get(..byte_index).unwrap(),
+            input.get(..byte_index).unwrap_or_default(),
             if add_ellipsis { "…" } else { "" }
         ),
         if add_ellipsis {

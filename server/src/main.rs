@@ -1,4 +1,5 @@
 #![warn(clippy::str_to_string, clippy::pedantic, clippy::nursery)]
+#![cfg_attr(not(test), warn(clippy::unwrap_used))]
 
 mod cli;
 

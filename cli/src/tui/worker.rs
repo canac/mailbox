@@ -1,4 +1,5 @@
 use super::monotonic_counter::MonotonicCounter;
+use anyhow::Error;
 use database::{Backend, Database, Filter, Mailbox, MailboxInfo, Message, State};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -80,35 +81,33 @@ pub fn spawn<B: Backend + Send + Sync + 'static>(
                         let messages =
                             tokio::spawn(async move { db.load_messages(messages_filter).await });
 
-                        let mailboxes = mailboxes.await.unwrap().unwrap();
-                        let messages = messages.await.unwrap().unwrap();
+                        let mailboxes = mailboxes.await??;
+                        let messages = messages.await??;
                         pending_requests.fetch_sub(1, Ordering::Relaxed);
-                        tx_res
-                            .send(Response::InitialLoad {
-                                mailboxes,
-                                messages,
-                                initial_mailbox,
-                            })
-                            .unwrap();
+                        tx_res.send(Response::InitialLoad {
+                            mailboxes,
+                            messages,
+                            initial_mailbox,
+                        })?;
                     }
                     Request::LoadMessages(filter) => {
                         pending_requests.fetch_add(1, Ordering::Relaxed);
                         let req_id = message_counter.next();
-                        let messages = db.load_messages(filter).await.unwrap();
+                        let messages = db.load_messages(filter).await?;
                         pending_requests.fetch_sub(1, Ordering::Relaxed);
                         // Only use these messages if there aren't any fresher load requests in progress
                         if message_counter.last() == req_id {
-                            tx_res.send(Response::LoadMessages(messages)).unwrap();
+                            tx_res.send(Response::LoadMessages(messages))?;
                         }
                     }
                     Request::LoadMailboxes(filter) => {
                         pending_requests.fetch_add(1, Ordering::Relaxed);
                         let req_id = mailbox_counter.next();
-                        let mailboxes = db.load_mailboxes(filter).await.unwrap();
+                        let mailboxes = db.load_mailboxes(filter).await?;
                         pending_requests.fetch_sub(1, Ordering::Relaxed);
                         // Only use these mailboxes if there aren't any fresher load requests in progress
                         if mailbox_counter.last() == req_id {
-                            tx_res.send(Response::LoadMailboxes(mailboxes)).unwrap();
+                            tx_res.send(Response::LoadMailboxes(mailboxes))?;
                         }
                     }
                     Request::ChangeMessageStates {
@@ -117,19 +116,21 @@ pub fn spawn<B: Backend + Send + Sync + 'static>(
                         refresh,
                     } => {
                         pending_requests.fetch_add(1, Ordering::Relaxed);
-                        db.change_state(filter, new_state).await.unwrap();
+                        db.change_state(filter, new_state).await?;
                         pending_requests.fetch_sub(1, Ordering::Relaxed);
-                        tx_res.send(Response::Mutated { refresh }).unwrap();
+                        tx_res.send(Response::Mutated { refresh })?;
                     }
                     Request::DeleteMessages { filter, refresh } => {
                         pending_requests.fetch_add(1, Ordering::Relaxed);
-                        db.delete_messages(filter).await.unwrap();
+                        db.delete_messages(filter).await?;
                         pending_requests.fetch_sub(1, Ordering::Relaxed);
-                        tx_res.send(Response::Mutated { refresh }).unwrap();
+                        tx_res.send(Response::Mutated { refresh })?;
                     }
                 }
+                Ok::<_, Error>(())
             });
         }
+        Ok::<_, Error>(())
     });
 
     (tx_req, rx_res)
