@@ -2,22 +2,25 @@
 mod cli;
 
 use clap::CommandFactory;
-use std::{fs, io, path::PathBuf};
+use cli::Cli;
+use std::{fs, io::Result, path::PathBuf};
 
-fn main() {
+fn main() -> Result<()> {
     // Don't rebuild when the generated completions change
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/cli.rs");
 
-    generate_completions().unwrap();
-    generate_manpage().unwrap();
+    generate_completions()?;
+    generate_manpage()?;
+
+    Ok(())
 }
 
-fn generate_completions() -> io::Result<()> {
+fn generate_completions() -> Result<()> {
     use clap_complete::generate_to;
     use clap_complete::shells::{Bash, Elvish, Fish, PowerShell, Zsh};
 
-    let cmd = &mut cli::Cli::command();
+    let cmd = &mut Cli::command();
     let bin_name = String::from(cmd.get_name());
     let out_dir = &PathBuf::from("../contrib/completions");
 
@@ -31,11 +34,11 @@ fn generate_completions() -> io::Result<()> {
     Ok(())
 }
 
-fn generate_manpage() -> io::Result<()> {
+fn generate_manpage() -> Result<()> {
     let out_dir = &PathBuf::from("../man/man1");
     fs::create_dir_all(out_dir)?;
 
-    let mut cmd = cli::Cli::command();
+    let mut cmd = Cli::command();
     cmd.build();
 
     let name = String::from(cmd.get_name());
