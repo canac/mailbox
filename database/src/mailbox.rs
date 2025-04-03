@@ -18,7 +18,7 @@ impl Mailbox {
     // Return the name of the mailbox without its ancestors
     #[must_use]
     pub fn get_leaf_name(&self) -> &str {
-        self.0.split('/').last().unwrap_or_default()
+        self.0.split('/').next_back().unwrap_or_default()
     }
 
     // Return true if the mailbox is an ancestor of the other mailbox

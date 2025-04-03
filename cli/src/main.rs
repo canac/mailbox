@@ -206,7 +206,7 @@ async fn run<B: Backend + Send + Sync + 'static>(
             ConfigSubcommand::Locate => println!("{}", get_config_path()?.to_string_lossy()),
             ConfigSubcommand::Edit => edit_config()?,
         },
-    };
+    }
 
     Ok(())
 }

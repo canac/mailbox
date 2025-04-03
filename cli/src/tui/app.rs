@@ -209,7 +209,7 @@ impl App {
                         self.update_messages()?;
                     }
                 }
-            };
+            }
         }
     }
 
