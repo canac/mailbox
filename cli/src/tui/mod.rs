@@ -442,7 +442,8 @@ fn render_mailboxes(frame: &mut Frame, app: &mut App, area: Rect) {
                     "Mailboxes ({}{})",
                     app.mailboxes
                         .get_cursor()
-                        .map_or_else(String::new, |index| format!("{}/", index + 1)),
+                        .map(|index| format!("{}/", index + 1))
+                        .unwrap_or_default(),
                     app.mailboxes.get_items().len()
                 )),
         )
@@ -507,7 +508,8 @@ fn render_messages(frame: &mut Frame, app: &mut App, area: Rect) {
                     "Messages ({}{})",
                     app.messages
                         .get_cursor()
-                        .map_or_else(String::new, |index| format!("{}/", index + 1)),
+                        .map(|index| format!("{}/", index + 1))
+                        .unwrap_or_default(),
                     app.messages.get_items().len()
                 )),
         )
