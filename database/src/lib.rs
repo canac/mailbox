@@ -4,6 +4,7 @@
     clippy::missing_const_for_fn,
     clippy::missing_errors_doc
 )]
+#![cfg_attr(not(test), warn(clippy::unwrap_used))]
 
 mod backend;
 mod database;
