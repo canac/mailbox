@@ -130,25 +130,24 @@ impl Filter {
     // Determine whether a message matches the filter
     #[must_use]
     pub fn matches_message(&self, message: &Message) -> bool {
-        if let Some(ids) = self.ids.as_ref() {
-            if !ids.contains(&message.id) {
-                return false;
-            }
+        if let Some(ids) = self.ids.as_ref()
+            && !ids.contains(&message.id)
+        {
+            return false;
         }
-        if let Some(mailbox) = self.mailbox.as_ref() {
-            if !(mailbox == &message.mailbox
+        if let Some(mailbox) = self.mailbox.as_ref()
+            && !(mailbox == &message.mailbox
                 || message
                     .mailbox
                     .as_ref()
                     .starts_with(format!("{mailbox}/").as_str()))
-            {
-                return false;
-            }
+        {
+            return false;
         }
-        if let Some(states) = self.states.as_ref() {
-            if !states.contains(&message.state) {
-                return false;
-            }
+        if let Some(states) = self.states.as_ref()
+            && !states.contains(&message.state)
+        {
+            return false;
         }
         true
     }
