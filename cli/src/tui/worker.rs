@@ -55,8 +55,7 @@ pub fn spawn<B: Backend + Send + Sync + 'static>(
     let message_counter = MonotonicCounter::new();
     let mailbox_counter = MonotonicCounter::new();
     thread::spawn(move || {
-        loop {
-            let Ok(req) = rx_req.recv() else { break };
+        while let Ok(req) = rx_req.recv() {
             let tx_res = tx_res.clone();
             let db = Arc::clone(&db);
             let message_counter = message_counter.clone();
