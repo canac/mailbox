@@ -68,7 +68,7 @@ pub fn run<B: Backend + Send + Sync + 'static>(
     res
 }
 
-fn run_app<B: ratatui::backend::Backend>(
+fn run_app<B: ratatui::backend::Backend<Error: Send + Sync + 'static>>(
     terminal: &mut Terminal<B>,
     mut app: App,
     tick_rate: Duration,
