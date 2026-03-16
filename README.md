@@ -133,6 +133,7 @@ The following keyboard commands allow navigating and performing operations on th
 - `Ctrl+u`: toggle whether unread messages are displayed
 - `Ctrl+r`: toggle whether read messages are displayed
 - `Ctrl+a`: toggle whether archived messages are displayed
+- `?`: open the help popup
 - `q`: exit the TUI
 
 ### Mailbox pane commands

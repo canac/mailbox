@@ -55,6 +55,7 @@ pub struct App {
     pub(crate) active_pane: Pane,
     pub(crate) active_states: HashSet<State>,
     pub(crate) pending_requests: Arc<AtomicUsize>,
+    pub(crate) show_help: bool,
     worker_tx: Sender,
     worker_rx: Receiver,
 }
@@ -73,6 +74,7 @@ impl App {
             mailboxes: TreeList::new(),
             messages: MultiselectList::new(),
             active_states: initial_states.into_iter().collect(),
+            show_help: false,
             worker_tx,
             worker_rx,
             pending_requests,

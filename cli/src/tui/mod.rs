@@ -25,10 +25,10 @@ use linkify::{LinkFinder, LinkKind};
 use ratatui::{
     Frame, Terminal,
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout, Position, Rect},
+    layout::{Constraint, Direction, Layout, Margin, Position, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
 };
 use std::io;
 use std::sync::atomic::Ordering;
@@ -152,6 +152,8 @@ fn run_app<B: ratatui::backend::Backend>(
 fn handle_global_key(app: &mut App, event: &InputEvent) -> Result<bool> {
     let control = event.control;
     match event.key {
+        KeyCode::Char('?') => app.show_help = true,
+        KeyCode::Esc if app.show_help => app.show_help = false,
         KeyCode::Char('1') => app.activate_pane(Pane::Mailboxes),
         KeyCode::Char('2') => app.activate_pane(Pane::Messages),
         KeyCode::Right | KeyCode::Left => {
@@ -343,6 +345,9 @@ fn ui(frame: &mut Frame, app: &mut App, layout: &AppLayout) {
     render_messages(frame, app, layout.messages);
     render_status(frame, app, layout.status);
     render_loading(frame, app, layout.loading);
+    if app.show_help {
+        render_help(frame);
+    }
 }
 
 // Render the status section of the footer UI
@@ -518,6 +523,142 @@ fn render_messages(frame: &mut Frame, app: &mut App, area: Rect) {
     // Make the list scroll up as far as possible while still showing the selected item
     *messages_state.offset_mut() = 0;
     frame.render_stateful_widget(messages_list, area, messages_state);
+}
+
+// Build a help column
+fn help_section(title: &str, shortcuts: &[(&str, &str)]) -> Vec<Line<'static>> {
+    let mut lines = vec![Line::from(Span::styled(
+        title.to_owned(),
+        Style::new().add_modifier(Modifier::BOLD),
+    ))];
+    for (key, description) in shortcuts {
+        lines.push(Line::from(format!("{key:<10}{description}")));
+    }
+    lines
+}
+
+// Render the keyboard shortcuts help popup
+#[allow(clippy::too_many_lines)]
+fn render_help(frame: &mut Frame) {
+    let global_text = help_section(
+        "Global",
+        &[
+            ("?", "Show this help"),
+            ("q", "Quit"),
+            ("1", "Mailboxes pane"),
+            ("2", "Messages pane"),
+            ("Left/Right", "Toggle pane"),
+            ("R", "Refresh"),
+            ("Ctrl+u", "Toggle unread"),
+            ("Ctrl+r", "Toggle read"),
+            ("Ctrl+a", "Toggle archived"),
+        ],
+    );
+
+    let mailbox_text = help_section(
+        "Mailboxes",
+        &[
+            ("j/Down", "Move down"),
+            ("k/Up", "Move up"),
+            ("Ctrl+j", "Next sibling"),
+            ("Ctrl+k", "Prev sibling"),
+            ("K", "Parent"),
+            ("u", "Mark unread"),
+            ("r", "Mark read"),
+            ("a", "Mark archived"),
+            ("Esc", "Remove cursor"),
+        ],
+    );
+
+    let message_text = help_section(
+        "Messages",
+        &[
+            ("j/Down", "Move down"),
+            ("k/Up", "Move up"),
+            ("Ctrl+j", "Down by 10"),
+            ("Ctrl+k", "Up by 10"),
+            ("J", "Last"),
+            ("K", "First"),
+            ("Space", "Toggle select"),
+            ("Ctrl+s", "Select mode"),
+            ("Ctrl+d", "Deselect mode"),
+            ("g", "Select all"),
+            ("G", "Deselect all"),
+            ("u", "Mark unread"),
+            ("r", "Mark read"),
+            ("a", "Mark archived"),
+            ("Ctrl+x", "Delete"),
+            ("Enter", "Open URL"),
+            ("Esc", "Remove cursor"),
+        ],
+    );
+
+    let col_width = 26u16;
+    let col_height = u16::try_from(
+        global_text
+            .len()
+            .max(mailbox_text.len())
+            .max(message_text.len()),
+    )
+    .unwrap_or(u16::MAX);
+    let width = col_width * 3 + 4; // 3 columns + separators + border
+    let height = col_height + 3; // +2 border, +1 footer
+    let area = frame.area();
+    let popup = Rect {
+        x: area.width.saturating_sub(width) / 2,
+        y: area.height.saturating_sub(height) / 2,
+        width: width.min(area.width),
+        height: height.min(area.height),
+    };
+
+    frame.render_widget(Clear, popup);
+    let outer_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::new().fg(Color::LightGreen))
+        .title("Keyboard Shortcuts");
+    let inner = outer_block.inner(popup);
+    frame.render_widget(outer_block, popup);
+
+    let columns = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Length(col_width),
+            Constraint::Length(1),
+            Constraint::Length(col_width),
+            Constraint::Length(1),
+            Constraint::Length(col_width),
+        ])
+        .split(Rect {
+            height: inner.height.saturating_sub(1),
+            ..inner
+        });
+
+    let col_margin = Margin {
+        horizontal: 1,
+        ..Default::default()
+    };
+    let separator = Block::default()
+        .borders(Borders::RIGHT)
+        .border_style(Style::new().fg(Color::DarkGray));
+    frame.render_widget(Paragraph::new(global_text), columns[0].inner(col_margin));
+    frame.render_widget(separator.clone(), columns[1]);
+    frame.render_widget(Paragraph::new(mailbox_text), columns[2].inner(col_margin));
+    frame.render_widget(separator, columns[3]);
+    frame.render_widget(Paragraph::new(message_text), columns[4].inner(col_margin));
+
+    let footer = Rect {
+        x: inner.x,
+        y: inner.y + inner.height.saturating_sub(1),
+        width: inner.width,
+        height: 1,
+    };
+    frame.render_widget(
+        Paragraph::new(Line::from(vec![Span::styled(
+            "Press Esc to close",
+            Style::new().fg(Color::DarkGray),
+        )])),
+        footer,
+    );
 }
 
 // If the message contains a URL, open it in a web browser
