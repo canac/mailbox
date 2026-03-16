@@ -31,7 +31,7 @@ impl TryFrom<u32> for State {
             0 => Ok(Self::Unread),
             1 => Ok(Self::Read),
             2 => Ok(Self::Archived),
-            _ => Err(anyhow!("Invalid message state {}", value)),
+            _ => Err(anyhow!("Invalid message state {value}")),
         }
     }
 }
@@ -44,7 +44,7 @@ impl FromStr for State {
             "unread" => Ok(Self::Unread),
             "read" => Ok(Self::Read),
             "archived" => Ok(Self::Archived),
-            _ => Err(anyhow!("Invalid message state {}", value)),
+            _ => Err(anyhow!("Invalid message state {value}")),
         }
     }
 }

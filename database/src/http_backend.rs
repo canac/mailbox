@@ -39,11 +39,9 @@ impl HttpBackend {
         let url = res.url().to_string();
         let status = res.status();
         match res.text().await {
-            Ok(body) => anyhow!(
-                "Request to {url} failed with status code {}\n\nResponse:{}",
-                status,
-                body
-            ),
+            Ok(body) => {
+                anyhow!("Request to {url} failed with status code {status}\n\nResponse:{body}")
+            }
             Err(err) => err.into(),
         }
     }
