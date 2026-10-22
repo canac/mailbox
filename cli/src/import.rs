@@ -84,8 +84,14 @@ mod tests {
     #[test]
     fn test_empty() {
         let stdin = "";
-        assert!(read_messages_stdin(stdin.as_bytes(), ImportMessageFormat::Tsv).is_empty());
-        assert!(read_messages_stdin(stdin.as_bytes(), ImportMessageFormat::Json).is_empty());
+        assert_eq!(
+            read_messages_stdin(stdin.as_bytes(), ImportMessageFormat::Tsv),
+            [] as [database::NewMessage; 0]
+        );
+        assert_eq!(
+            read_messages_stdin(stdin.as_bytes(), ImportMessageFormat::Json),
+            [] as [database::NewMessage; 0]
+        );
     }
 
     #[test]
