@@ -37,14 +37,5 @@ fn generate_completions() -> Result<()> {
 fn generate_manpage() -> Result<()> {
     let out_dir = &PathBuf::from("../man/man1");
     fs::create_dir_all(out_dir)?;
-
-    let mut cmd = Cli::command();
-    cmd.build();
-
-    let name = String::from(cmd.get_name());
-    let mut buffer: Vec<u8> = Default::default();
-    clap_mangen::Man::new(cmd.clone()).render(&mut buffer)?;
-    fs::write(out_dir.join(format!("{name}.1")), buffer)?;
-
-    Ok(())
+    clap_mangen::generate_to(Cli::command(), out_dir)
 }
